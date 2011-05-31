@@ -30,7 +30,7 @@ setup(
     author="Spike^ekipS",
     author_email="spikeekips@gmail.com",
     url="https://github.com/spikeekips/source-over-ssh",
-    download_url="https://github.com/spikeekips/source-over-ssh/tarball/v0.1a",
+    download_url="https://github.com/spikeekips/source-over-ssh/downloads",
     platforms=["Any", ],
     license="GNU General Public License (GPL)",
 
