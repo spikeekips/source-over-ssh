@@ -25,8 +25,7 @@ use `pip` (**not yet supported**)
 
 using `pip`, just search `sos` and install it. ::
 
-    sh $ pip search sos
-    sh $ pip install sos
+    sh $ pip install source-over-ssh
 
 
 from source
