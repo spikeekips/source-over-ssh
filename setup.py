@@ -31,7 +31,7 @@ setup(
     author="Spike^ekipS",
     author_email="spikeekips@gmail.com",
     url="https://github.com/spikeekips/source-over-ssh",
-    download_url="https://github.com/spikeekips/source-over-ssh/archives/master",
+    download_url="https://github.com/spikeekips/source-over-ssh/tarball/v0.1a",
     platforms=["Any", ],
     license="GNU General Public License (GPL)",
 
