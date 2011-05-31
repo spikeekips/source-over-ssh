@@ -27,7 +27,6 @@ setup(
     version="0.1a",
     description="source repository management server over ssh",
     long_description=long_description.replace("\n", " ").strip(),
-    license="",
     author="Spike^ekipS",
     author_email="spikeekips@gmail.com",
     url="https://github.com/spikeekips/source-over-ssh",
