@@ -70,7 +70,8 @@ class SOSSession (session.SSHSession, ) :
             log.msg("data received: %s: %s" % (self._request_type, [data, ], ), )
         else :
             if data == "\r" :
-                log.msg("data received: %s: %s" % (self._request_type, [(self._buf + data), ], ), )
+                if self._buf :
+                    log.msg("data received: %s: %s" % (self._request_type, [(self._buf + data), ], ), )
                 self._buf = str()
             else :
                 self._buf += data
@@ -117,7 +118,7 @@ class SOSProtocol (recvline.HistoricRecvLine, ) :
             self.terminal.nextLine()
 
     def lineReceived (self, line, ) :
-        if self._avatar._verbose :
+        if self._avatar._verbose and line.strip() :
             log.msg("avatar: data received: %s" % ([line, ], ), )
 
         line = line.strip()
