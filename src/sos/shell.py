@@ -595,19 +595,20 @@ class ShellCommand (object, ) :
         return ("remove public key.", )
 
     def print_user_list (self, userlist, ) :
-        if len(userlist) < 1 :
-            _values = (("no users", "", ), )
-        else :
-            _values = map(
-                lambda x : (
-                    self._config_db.is_admin(x) and ("%s *" % x) or x,
-                    self._config_db.get_full_username(x),
-                ),
-                userlist,
-            )
+        _values = map(
+            lambda x : (
+                self._config_db.is_admin(x) and ("%s *" % x) or x,
+                self._config_db.get_full_username(x),
+            ),
+            userlist,
+        )
 
-        _l = [i for i in utils.format_data(_values, width=self._window_size[1], )]
-        _l.append("(* is `admin`)", )
+        _l = [i for i in utils.format_data(
+            _values and _values or (("no users", "", ), ),
+            width=self._window_size[1], )]
+
+        if _values :
+            _l.append("(* is `admin`)", )
 
         return _l
 
