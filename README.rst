@@ -7,6 +7,14 @@ with *virtual* user account. it supports `svn`, `git` without any further
 configuration of your client and also provide the management shell through
 `ssh`.
 
+the one of the reason, why `source+over+ssh` was written was, that is. when you
+serve the `svn` or `git` source repositories through ssh, you must create and
+provide the actual system account (maybe that account be able to access to the
+system shell, though you use ``git-shell``, it also can be the shell.). using
+`source+over+ssh` you don't need these kind of security problem. in the
+`source+over+ssh`, there is no actual system account, every user is **virtual**.
+you can protect your system from accidental security problems.
+
 
 feature
 ##################################################
