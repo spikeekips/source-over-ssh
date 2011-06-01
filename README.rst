@@ -20,10 +20,17 @@ feature
 install
 ##################################################
 
+`source+over+ssh` is written in `Python` and depends on the `Twisted Network
+Framework`, especially `Twisted Conch`, so to install the `sos` you need
+`Python` and `Twisted Conch`. if you install `sos` thru `pip`, `pip` will
+install these things automatically with `sos`, but if you install from source,
+you install these manually. 
+
+
 use `pip` (**not yet supported**)
 ==================================================
 
-using `pip`, just search `sos` and install it. ::
+using `pip`, just search `source-over-ssh` and install it. ::
 
     sh $ pip install source-over-ssh
 
@@ -37,13 +44,8 @@ requirement
  - `Python` 2.6 or higher <http://python.org>
  - `Twisted Network Framework` 11.0 or higher <http://twistedmatrix.com>
 
-`sos` is written in `Python` and depends on the `Twisted Network Framework`,
-especially `twisted conch`, so to install the `sos` you need `Python` and
-`Twisted Conch`. if you install `sos` thru `pip`, `pip` will install these
-things automatically with `sos`, but if you install from source, you install
-these manually. ::
+::
 
-    sh $ apt-get install python2.6 # or python2.7
     sh $ apt-get install python-twisted-conch
 
 or, ::
@@ -54,7 +56,7 @@ or, ::
 `setup.py`
 --------------------------------------------------
 
-#. download the latest version of `sos` from https://github.com/spikeekips/source-over-ssh
+#. download the latest version of `sos` from https://github.com/spikeekips/source-over-ssh/downloads
 #. run the `setup.py`::
 
     sh $ tar xf source-over-ssh-vX.X.X.tar.gz
@@ -68,7 +70,7 @@ everything done.
 generate ssh host key
 ==================================================
 
-to run, you need ssh host key for `sso`. you can set the directory of host
+to run, you need ssh host key for `sos`. you can set the directory of host
 key(private and public) manually by ``--host-key`` option, but if you run this
 server within normal user, not `root`, i recommend you use your own ssh host
 key. the default path is ``$HOME/.sos``. you can generate ssh host key like this,
@@ -80,8 +82,8 @@ key. the default path is ``$HOME/.sos``. you can generate ssh host key like this
     sh $ ssh-keygen -q -f .sos/ssh_host_key -N "" -t rsa
 
 this command will generate two ssh host key files, ``ssh_host_key`` and
-``ssh_host_key.pub`` without passpharase, these keys will be used only for `sso`.
-`sso` will use this keys by default.
+``ssh_host_key.pub`` without passpharase, these keys will be used only for `sos`.
+`sos` will use this keys by default.
 
 
 deploy
@@ -111,24 +113,19 @@ options manually, ::
           --syslog         Log to syslog, not to file
           --vv             verbose
       -l, --logfile=       log to a specified file, - for stdout
-      -p, --profile=       Run in profile mode, dumping results to specified
-                            file
-          --profiler=      Name of the profiler to use (profile, cprofile,
-                            hotshot). [default: hotshot]
-          --prefix=        use the given prefix when syslogging [default: sso]
+      -p, --profile=       Run in profile mode, dumping results to specified file
+          --profiler=      Name of the profiler to use (profile, cprofile, hotshot). [default: hotshot]
+          --prefix=        use the given prefix when syslogging [default: sos]
           --pidfile=       Name of the pidfile
-          --host-key=      directory to look for host keys in`.
-                            [default: $HOME/.sos]
+          --host-key=      directory to look for host keys in`.  [default: $HOME/.sos]
           --config=        config file`. [default: $HOME/.sos/sos.cfg]
           --port=          ssh server port` [default: 2022]
           --interface=     network interface`
           --help-reactors  Display a list of possibly available reactor names.
           --version        Print version information and exit.
-          --spew           Print an insanely verbose log of everything that
-                            happens.  Useful when debugging freezes or locks in
-                            complex code.
-      -b, --debug          Run the application in the Python Debugger (implies
-                            nodaemon), sending SIGUSR2 will drop into debugger
+          --spew           Print an insanely verbose log of everything that happens.  Useful when debugging freezes or locks
+                            in complex code.
+      -b, --debug          Run the application in the Python Debugger (implies nodaemon), sending SIGUSR2 will drop into debugger
           --reactor=
           --help           Display this help and exit.
 
@@ -198,7 +195,7 @@ and access as new user, ``spikeekips``. ::
     usage:
     COMMANDS : 'public_key', 'realname', 'quit', 'clear', 'repo', 'user', 'password', 'email', 'help'
 
-    sso: spikeekips $
+    sos: spikeekips $
 
 you can set your email and realname, and also change your password too.
 
@@ -221,7 +218,7 @@ add source repository
 
 the basic usage of adding repository is, ::
 
-    sso: admin $ help admin repo add
+    sos: admin $ help admin repo add
 
     usage:
     admin repo add : $ admin repo add <repo path> [<alias>] [<description>]
@@ -245,13 +242,13 @@ allow source repository to the user
 to access to the repository by the normal user, you can allow the registered
 repository to the user. ::
 
-    sso: admin $ admin repo allow user spikeekips /sos-test
+    sos: admin $ admin repo allow user spikeekips /sos-test
     repository, '/sos-trunk' allowed to user, 'spikeekips'
 
 you can also disallow the user, ::
 
-    sso: admin $ admin repo disallow user spikeekips /sos-test
-    sso: admin $ admin repo user list /sos-test
+    sos: admin $ admin repo disallow user spikeekips /sos-test
+    sos: admin $ admin repo user list /sos-test
     ============================================================
      no users
     ============================================================
@@ -262,7 +259,7 @@ store public key for authentication without passpharase
 ==========================================================
 
 you can login with your ssh public key without passpharase same as decent ssh
-client. you store your ssh public key(not private key) to the `sso`.
+client. you store your ssh public key(not private key) to the `sos`.
 
 .. note ::
     if you are not familiar with ssh or creating ssh public key, see this page,
@@ -271,14 +268,12 @@ client. you store your ssh public key(not private key) to the `sso`.
 open your ssh public key, which is usually ``.ssh/id_rsa.pub`` in your home
 directory, and paste it. this is my personal public key ::
 
-    sso: admin $ public_key view
+    sos: admin $ public_key view
 
-    sso: admin $ public_key save ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8
-    ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJZKlxv+t1JdY+iLi/x/Q3tBHccr7Ueiy+I38AouwOUn8
-    1UiViAU6IquNFlOMYMB/IoS5tVYEbHxoYpsZTUi/CuRNOLDfKG0avAXDSdQ9mp2ln1Ovv3pHQLeU
-    uWni5ecslVC36vxpL49eLxr6uXaMnhDyyl9PbMnoudMeiyyyZVNIKK+QEonPLkxgYPk9l1baAtEA
-    ph/zDsOwHfwo0DYgt8cPwyO6nzI9BoifVYWavCQoRsGtotf4AktTfL2AArJQc9jLLlzYsPwXK8g2
-    QTLCHm7FED+Wm3T42Tsmn31eYGw== spikeekips@gmail.com
+    sos: admin $ public_key save ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJZKlxv+t1JdY+
+            iLi/x/Q3tBHccr7Ueiy+I38AouwOUn81UiViAU6IquNFlOMYMB/IoS5tVYEbHxoYpsZTUi/CuRNOLDfKG0avAXDSdQ9mp2ln1Ovv3pHQLeUuWni5e
+            cslVC36vxpL49eLxr6uXaMnhDyyl9PbMnoudMeiyyyZVNIKK+QEonPLkxgYPk9l1baAtEAph/zDsOwHfwo0DYgt8cPwyO6nzI9BoifVYWavCQoRsG
+            totf4AktTfL2AArJQc9jLLlzYsPwXK8g2QTLCHm7FED+Wm3T42Tsmn31eYGw== spikeekips@gmail.com
 
 
 .. warning ::
@@ -291,7 +286,7 @@ and then, just try to connect, ::
     sh $ ssh -p2022 admin@localhost
     Enter passphrase for key '/home/spikeekips/.ssh/id_rsa':
     ...
-    sso: admin $
+    sos: admin $
 
 .. note ::
     to skip asking passphrase for key, see this page,
@@ -305,7 +300,7 @@ after adding repository and allowing user, you are ready to use your source
 repository.
 
 .. note ::
-    when you run `sso` as non-root user, you wil not use the default ssh port,
+    when you run `sos` as non-root user, you wil not use the default ssh port,
     22. in this case, there are some problems with `svn`, using command line svn
     client you can not set the different port other than 22 directly, so you
     need some tip, adding the followings to the ``.ssh/config`` file from your
@@ -317,7 +312,7 @@ repository.
 
 ::
 
-    sh $ svn co svn+ssh://spikeekips@localhost/sso-test sso-test
+    sh $ svn co svn+ssh://spikeekips@localhost/sos-test sos-test
     spikeekips@localhost's password: 
     A    test/..........
     ....................
