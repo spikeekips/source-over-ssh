@@ -8,7 +8,7 @@ if __name__ == "__builtin__"  :
 elif __name__ == "__main__"  :
     import os, sys
     _h = os.path.join(
-        os.path.split(os.path.dirname(__file__), )[0],
+        os.path.split(os.path.abspath(os.path.dirname(__file__), ), )[0],
         "lib",
         "python%s" % ".".join(map(str, sys.version_info[:2], ), ),
         "site-packages",
