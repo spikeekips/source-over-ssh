@@ -170,9 +170,7 @@ class SOSProtocol (recvline.HistoricRecvLine, ) :
     ################################################################################
     # commands
     def _quit (self, ) :
-        self.terminal.nextLine()
-        self.terminal.transport.loseConnection()
-        self.terminal.reset()
+        self.terminal.loseConnection()
 
     def _help (self, ) :
         _sc = shell.ShellCommand(
