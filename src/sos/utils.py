@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import re, os
+import re
+import os
 
 RE_PREPATH = re.compile("^[\/]*", )
+
+
 def normpath (p, ) :
     return RE_PREPATH.sub("/", os.path.normpath(p, ), )
 
 RE_BLANK = re.compile("\s")
+
+
 def shlex_combine (l, ) :
     """
     >>> shlex_combine(["1", "2 3"])
@@ -23,9 +28,11 @@ def shlex_combine (l, ) :
 
     return _s.strip()
 
-################################################################################
+##################################################
 # foramt output
 import grid
+
+
 def format_help (v, width=50, *a, **kw) :
     if width < 50 :
         width = 50
@@ -42,6 +49,7 @@ def format_help (v, width=50, *a, **kw) :
         with_head=False,
         with_tail=False,
     )
+
 
 def format_data (v, width=50, *a, **kw) :
     if width < 50 :
@@ -61,9 +69,6 @@ def format_data (v, width=50, *a, **kw) :
     )
 
 
-
 if __name__ == "__main__" :
     import doctest
     doctest.testmod()
-
-

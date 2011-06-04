@@ -10,14 +10,6 @@
 >>> _cfg = "[user:dir0]\\npassword = thisispassword0\\nrealname = Spike-dir0\\nemail = dir0@dir.com\\npublic_key  = AAA\\n"
 >>> _cd = ConfigDatabase.from_string(_cfg, )
 
->>> print _cd.raw_config
-[user:dir0]
-password = thisispassword0
-realname = Spike-dir0
-public_key = AAA
-email = dir0@dir.com
-<BLANKLINE>
-<BLANKLINE>
 >>> _cfg = "[user:dir0]\\npassword = thisispassword0\\nrealname = Spike-dir0\\nemail = dir0@dir.com\\npublic_key  = AAA\\n[user:dir]\\npassword = thisispassword\\nrealname = Spike-dir\\nemail = dir@dir.com\\n"
 >>> _cd = ConfigDatabase.from_string(_cfg, )
 

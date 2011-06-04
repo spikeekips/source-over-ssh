@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import os, re, ConfigParser, hashlib
+import os
+import re
+import ConfigParser
+import hashlib
 from StringIO import StringIO
 
-import utils, _exceptions
+import utils
+import _exceptions
+
 
 class ConfigDatabase (object, ) :
     """
@@ -139,19 +144,20 @@ class ConfigDatabase (object, ) :
 
             yield (i, j, )
 
-
-    ################################################################################
+    ##################################################
     # user
-    def _u (self, username, ) :
+    def _u(self, username, ) :
         return "user:%s" % username
 
     RE_USERNAME = re.compile("^user\:")
+
     def _ur (self, section, ) :
         return self.RE_USERNAME.sub("", section, )
 
     @property
     def users (self, ) :
-        return [self._ur(i) for i in self._config.sections() if i.startswith("user:")]
+        return [self._ur(i) for i in self._config.sections()
+                if i.startswith("user:")]
 
     def has_user (self, username, ) :
         return self._config.has_section(self._u(username), )
@@ -168,7 +174,8 @@ class ConfigDatabase (object, ) :
         except :
             return default
 
-        return list(self.to_python_properties(datatype=self.datatype_user, **{p: _r, }))[0][1]
+        return list(self.to_python_properties(
+                datatype=self.datatype_user, **{p: _r, }))[0][1]
 
     def get_full_username (self, username, full=True, ) :
         _realname = self.get_user_property(username, "realname", )
@@ -260,18 +267,20 @@ class ConfigDatabase (object, ) :
             elif k in self.get_user_property(i, "repository", "", ).lower() :
                 yield i
 
-    ################################################################################
+    ##################################################
     # repository
     def _r (self, alias, ) :
         return "repository:%s" % alias
 
     RE_REPOSITORY = re.compile("^repository\:")
+
     def _rr (self, section, ) :
         return self.RE_REPOSITORY.sub("", section, )
 
     @property
     def repositories (self, ) :
-        return [self._rr(i) for i in self._config.sections() if i.startswith("repository:")]
+        return [self._rr(i) for i in self._config.sections()
+                if i.startswith("repository:")]
 
     def has_repository (self, alias=None, path=None, ) :
         if alias :
@@ -292,7 +301,7 @@ class ConfigDatabase (object, ) :
             raise KeyError("'%s' does not exist." % p, )
 
         try :
-            return self._config.get(self._r(alias), p, )
+            _r = self._config.get(self._r(alias), p, )
         except :
             return default
 
@@ -304,7 +313,8 @@ class ConfigDatabase (object, ) :
 
         (path, alias, ) = map(utils.normpath, (path, alias, ), )
         if not os.path.exists(path, ) or not os.path.isdir(path, ) :
-            raise _exceptions.BAD_ARGUMENT("'%s' is not directory, check it." % path, )
+            raise _exceptions.BAD_ARGUMENT(
+                    "'%s' is not directory, check it." % path, )
 
         if self.has_repository(alias, ) :
             raise KeyError("'%s' already exists." % alias, )
@@ -315,7 +325,8 @@ class ConfigDatabase (object, ) :
         if description :
             properties["description"] = " ".join(description, )
 
-        for i, j in self.to_config_properties(self.default_repository, **properties) :
+        for i, j in self.to_config_properties(
+                self.default_repository, **properties) :
             self._config.set(self._r(alias), i, j, )
 
         return self
@@ -324,7 +335,8 @@ class ConfigDatabase (object, ) :
         if not self.has_repository(alias, ) :
             raise KeyError("'%s' does not exist." % alias, )
 
-        for i, j in self.to_config_properties(self.default_repository, **properties) :
+        for i, j in self.to_config_properties(
+                self.default_repository, **properties) :
             if i == "path" and j :
                 j = utils.normpath(j, )
 
@@ -373,6 +385,3 @@ class ConfigDatabase (object, ) :
     @classmethod
     def encrypt_password (cls, s, ) :
         return hashlib.sha1(s).hexdigest()
-
-
-

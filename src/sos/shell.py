@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import shlex, re, hashlib
+import shlex
+import re
 
 from twisted.conch.ssh.keys import Key, BadKeyError
 
-from config_db import ConfigDatabase
-import _exceptions, utils
+import _exceptions
+import utils
+
 
 class BaseCommandParser (object, ) :
     helps = {
@@ -27,7 +29,6 @@ class BaseCommandParser (object, ) :
             _f = shlex.split(i, )
             if _f[0] not in self._commands_in_helps :
                 self._commands_in_helps.append(_f[0], )
-        
 
             for x in range(len(_f) - 1, -1, -1, ) :
                 _s = " ".join(_f[:x])
@@ -57,19 +58,19 @@ class BaseCommandParser (object, ) :
         if command is None :
             return (
                 (
-                    "COMMANDS",
-                    "%s" % ", ".join(
-                        map(lambda x : "'%s'" % x, set(self._commands_in_helps, ), ),
+                    "COMMANDS", "%s" % ", ".join(
+                        map(lambda x : "'%s'" % x,
+                            set(self._commands_in_helps, ), ),
                     ),
                 ),
             )
 
         if type(command) in (str, ) :
-            command = shlex.split(command,  )
+            command = shlex.split(command, )
 
         _l = None
         for i in range(len(command) - 1, -1, -1) :
-            _command = " ".join(command[:i+1], )
+            _command = " ".join(command[:i + 1], )
             if _command in self.helps :
                 _l = (
                     (_command, self.helps.get(_command, ), ),
@@ -145,7 +146,7 @@ class CommandParser (BaseCommandParser, ) :
 
     def __init__ (self, *a, **kw) :
         self._is_admin = kw.get("is_admin", False, )
-        if kw.has_key("is_admin") :
+        if "is_admin" in kw :
             del kw["is_admin"]
 
         super(CommandParser, self).__init__(*a, **kw)
@@ -196,8 +197,9 @@ class CommandParser (BaseCommandParser, ) :
     # from `django.core.validators`
     email_re = re.compile(
         r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*"  # dot-atom
-        r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-011\013\014\016-\177])*"' # quoted-string
+        r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-011\013\014\016-\177])*"'  # quoted-string
         r')@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$', re.IGNORECASE, )  # domain
+
     def c_email (self, a, ) :
         if len(a) < 1 :
             return dict()
@@ -220,6 +222,14 @@ class CommandParser (BaseCommandParser, ) :
             args=tuple(a, ),
         )
 
+    def _check_public_key (self, key, ) :
+        try :
+            Key.fromString(data=key, )
+        except BadKeyError :
+            raise _exceptions.BAD_ARGUMENT("invalid public key.")
+
+        return key.strip()
+
     def c_public_key (self, a, ) :
         if len(a) < 1 :
             raise _exceptions.NOT_ENOUGH_ARGUMENT
@@ -234,13 +244,7 @@ class CommandParser (BaseCommandParser, ) :
             if len(a) < 2 :
                 raise _exceptions.NOT_ENOUGH_ARGUMENT
 
-            _key = " ".join(a[1:])
-            try :
-                public_key = Key.fromString(data=_key, )
-            except BadKeyError :
-                raise _exceptions.BAD_ARGUMENT("invalid public key.")
-
-            _r["args"] = (_key, )
+            _r["args"] = (self._check_public_key(" ".join(a[1:]), ), )
         else :
             raise _exceptions.BAD_ARGUMENT
 
@@ -263,6 +267,7 @@ class CommandParser (BaseCommandParser, ) :
         _r["admin"] = True
 
         return _r
+
 
 class AdminCommandParser (CommandParser, ) :
     """
@@ -350,7 +355,8 @@ class AdminCommandParser (CommandParser, ) :
             _r["subcommand"] = a[:2]
             _r["args"] = tuple(a[2:], )
             return _r
-        elif _sub in ("allow", "disallow", ) and len(a) == 4 and a[1] == "user" :
+        elif _sub in ("allow", "disallow",
+                ) and len(a) == 4 and a[1] == "user" :
             _r["subcommand"] = a[:2]
             _r["username"] = a[2]
             _r["args"] = tuple(a[3:], )
@@ -444,16 +450,8 @@ class AdminCommandParser (CommandParser, ) :
             if len(a) < 3 :
                 raise _exceptions.NOT_ENOUGH_ARGUMENT
 
-            # TODO: check the validation of public key.
-
-            _key = " ".join(a[2:])
-            try :
-                public_key = Key.fromString(data=_key, )
-            except BadKeyError :
-                raise _exceptions.BAD_ARGUMENT("invalid public key.")
-
             _r["username"] = a[1]
-            _r["args"] = (_key, )
+            _r["args"] = (self._check_public_key(" ".join(a[2:]), ), )
         else :
             raise _exceptions.BAD_ARGUMENT
 
@@ -467,6 +465,7 @@ class AdminCommandParser (CommandParser, ) :
             )
 
         raise _exceptions.NOT_ENOUGH_ARGUMENT
+
 
 class ShellCommand (object, ) :
     def __init__ (self,
@@ -586,7 +585,6 @@ class ShellCommand (object, ) :
         return (self._config_db.get_user_property(username, "public_key", "", ), )
 
     def c_public_key_save (self, a, username, **kw) :
-        # TODO: validate key.
         self._config_db.update_user(username, public_key=a[0], ).save()
         return ("updated public key.", )
 
@@ -619,7 +617,7 @@ class ShellCommand (object, ) :
         return self.print_user_list(self._config_db.search_user(a[0]), )
 
     def c_repo_list (self, a, username, **kw) :
-        if kw.get("admin") : # show all repository
+        if kw.get("admin") :  # show all repository
             _repos = self._config_db.repositories
         else :
             _repos = self._config_db.get_user_property(username, "repository", list(), )
@@ -698,6 +696,3 @@ class ShellCommand (object, ) :
             _users.append(i, )
 
         return self.print_user_list(_users, )
-
-
-

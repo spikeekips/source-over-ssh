@@ -1,8 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, os, shlex, re, string, pwd, resource
-import urlparse, base64, binascii, pty
+import sys
+import os
+import shlex
+import re
+import string
+import pwd
+import resource
+import urlparse
+import base64
+import binascii
+import pty
 
 from twisted.application import service, strports
 from twisted.internet import defer, process
@@ -26,7 +35,9 @@ from twisted.conch.unix import UnixConchUser
 
 from zope.interface import implements
 
-import shell, _exceptions, utils
+import shell
+import _exceptions
+import utils
 from config_db import ConfigDatabase
 
 
@@ -35,7 +46,8 @@ class SOSFactory (SSHFactory, ) :
         protocolVersion = "2.0"
         version = "OpenSSH_5.8p1"
         comment = "Debian-1ubuntu3"
-        ourVersionString = ('SSH-' + protocolVersion + "-" + version + " " + comment).strip()
+        ourVersionString = ('SSH-' + protocolVersion +
+                "-" + version + " " + comment).strip()
 
 
 class SOSSession (session.SSHSession, ) :
@@ -65,13 +77,16 @@ class SOSSession (session.SSHSession, ) :
         return session.SSHSession.request_exec(self, data, )
 
     _buf = str()
+
     def dataReceived (self, data, ) :
         if self._request_type not in ("shell", ) :
-            log.msg("data received: %s: %s" % (self._request_type, [data, ], ), )
+            log.msg("data received: %s: %s" % (
+                self._request_type, [data, ], ), )
         else :
             if data == "\r" :
                 if self._buf :
-                    log.msg("data received: %s: %s" % (self._request_type, [(self._buf + data), ], ), )
+                    log.msg("data received: %s: %s" % (
+                        self._request_type, [(self._buf + data), ], ), )
                 self._buf = str()
             else :
                 self._buf += data
@@ -87,7 +102,8 @@ class SOSProtocol (recvline.HistoricRecvLine, ) :
         self._config_db = config_db
 
         self._is_admin = self._config_db.is_admin(self._avatar.username, )
-        self._is_xterm = self._avatar._env.get("TERM", "xterm", ) in self.TERMINAL_COLOR_SUPPORTED
+        self._is_xterm = self._avatar._env.get("TERM", "xterm",
+                ) in self.TERMINAL_COLOR_SUPPORTED
 
         _ms = filter(lambda f: f.startswith('command_'), dir(self))
         self._commands = [c.replace('command_', '', 1) for c in _ms]
@@ -164,10 +180,11 @@ class SOSProtocol (recvline.HistoricRecvLine, ) :
         self.showPrompt()
 
     def showPrompt(self):
-        _s = (self._is_xterm and "\033[01;32m%s\033[00m $ " or "%s $") % self._avatar.username
+        _s = (self._is_xterm and "\033[01;32m%s\033[00m $ " or "%s $") % (
+                self._avatar.username, )
         self.write("sso: " + _s, p=True, )
 
-    ################################################################################
+    ##################################################
     # commands
     def _quit (self, ) :
         self.terminal.loseConnection()
@@ -233,13 +250,16 @@ class SOSAvatar (ConchUser, ) :
     def check_git_repository_permission (self, command, ) :
         _parsed = shlex.split(command, )
         _repo = _parsed[1]
-        _available_repos = self._config_db.get_user_property(self.username, "repository", list(), )
+        _available_repos = self._config_db.get_user_property(
+                self.username, "repository", list(), )
 
         if _repo not in _available_repos :
-            log.msg("not allowed this repository, `%s` to user, '%s'" % (_repo, self.username, ), )
+            log.msg("not allowed this repository, `%s` to user, '%s'" % (
+                _repo, self.username, ), )
             raise _exceptions.PERMISSION_DENIED
 
-        return (_parsed, self._config_db.get_repository_property(_repo, "path", ), )
+        return (_parsed, self._config_db.get_repository_property(
+            _repo, "path", ), )
 
     def execCommand (self, protocol, command, ) :
         _parsed = shlex.split(command, )
@@ -260,7 +280,8 @@ class SOSAvatar (ConchUser, ) :
             self.conn.transport.loseConnection()
             return
 
-        return self._exec_run_in_shell(protocol, "%s %s" % (_parsed[0], _path, ), )
+        return self._exec_run_in_shell(protocol, "%s %s" % (
+            _parsed[0], _path, ), )
 
     def _exec_git_receive_pack (self, protocol, command, ) :
         try :
@@ -269,7 +290,8 @@ class SOSAvatar (ConchUser, ) :
             self.conn.transport.loseConnection()
             return
 
-        return self._exec_run_in_shell(protocol, "%s %s" % (_parsed[0], _path, ), )
+        return self._exec_run_in_shell(protocol, "%s %s" % (
+            _parsed[0], _path, ), )
 
     def _exec_svnserve (self, protocol, command, ) :
         _parsed = shlex.split(command, )
@@ -294,7 +316,9 @@ class SOSAvatar (ConchUser, ) :
             log.debug("invalid command, %s" % command, )
             self.conn.transport.loseConnection()
 
-        _argvs.append("--tunnel-user='%s'" % self._config_db.get_full_username(self.username, ), )
+        _argvs.append("--tunnel-user='%s'" % (
+            self._config_db.get_full_username(self.username, ), ),
+        )
 
         from twisted.internet import reactor
         _shell = self._system_user.getShell()
@@ -303,15 +327,16 @@ class SOSAvatar (ConchUser, ) :
             _shell,
             (_shell, "-c", command, ),
             self._env,
-            "/tmp/", # path
-            protocol, # protocol
-            None, # uid
-            None, # gid
-            None, # usePTY
+            "/tmp/",  # path
+            protocol,  # protocol
+            None,  # uid
+            None,  # gid
+            None,  # usePTY
             avatar=self,
         )
 
-        return self._exec_run_in_shell(protocol, " ".join(_argvs), process_object=_process, )
+        return self._exec_run_in_shell(
+                protocol, " ".join(_argvs), process_object=_process, )
 
     def _exec_run_in_shell (self, protocol, command, process_object=None, ) :
         #peer = self.conn.transport.transport.getPeer()
@@ -354,7 +379,8 @@ class SOSAvatar (ConchUser, ) :
         self.ptyTuple = (_master, _slave, _ttyname, )
 
     def openShell (self, protocol, ) :
-        serverProtocol = insults.ServerProtocol(SOSProtocol, self, self._config_db, )
+        serverProtocol = insults.ServerProtocol(
+                SOSProtocol, self, self._config_db, )
         serverProtocol.makeConnection(protocol, )
         protocol.makeConnection(session.wrapProtocol(serverProtocol, ), )
 
@@ -387,7 +413,8 @@ class SOSPublicKeyDatabase (SSHPublicKeyDatabase, ) :
             return False
 
         try :
-            return base64.decodestring(_public_key.split()[1], ) == credentials.blob
+            return base64.decodestring(
+                    _public_key.split()[1], ) == credentials.blob
         except (binascii.Error, IndexError, ) :
             pass
 
@@ -405,7 +432,10 @@ class ConfigDBPassword (object, ) :
         if not self._config_db.has_user(username, ) :
             raise KeyError(username, )
 
-        return (username, self._config_db.get_user_property(username, "password"), )
+        return (
+                username,
+                self._config_db.get_user_property(username, "password"),
+        )
 
     def requestAvatarId (self, c, ) :
         try:
@@ -416,13 +446,13 @@ class ConfigDBPassword (object, ) :
             if not p :
                 return defer.fail(error.UnauthorizedLogin(), )
 
-            up = credentials.IUsernamePassword(c, None)
             return defer.maybeDeferred(
                 lambda : ConfigDatabase.encrypt_password(c.password) == p,
             ).addCallback(self._cbPasswordMatch, u, )
 
     def _cbPasswordMatch (self, matched, username, ) :
-        return matched and username or failure.Failure(error.UnauthorizedLogin())
+        return matched and username or failure.Failure(
+                error.UnauthorizedLogin())
 
 
 class SVNProcessParser (object, ) :
@@ -432,7 +462,8 @@ class SVNProcessParser (object, ) :
 
         try :
             _sh = SVNCommandParser(data, )
-        except (ValueError, IndexError, _exceptions.BAD_SVN_REPOSITORY_COMMAND, ) :
+        except (ValueError, IndexError,
+                _exceptions.BAD_SVN_REPOSITORY_COMMAND, ) :
             return data
 
         return _sh.replace_path(self.proc._repo_real, self.proc._repo_alias, )
@@ -440,7 +471,8 @@ class SVNProcessParser (object, ) :
     def convert (self, data, ) :
         try :
             _sh = SVNCommandParser(data, )
-        except (_exceptions.BAD_SVN_REPOSITORY_COMMAND, ValueError, IndexError, ) :
+        except (_exceptions.BAD_SVN_REPOSITORY_COMMAND,
+                ValueError, IndexError, ) :
             return data
 
         _available_repos = self.proc._avatar._config_db.get_user_property(
@@ -493,7 +525,8 @@ class SVNProcess (process.Process, ) :
 
     def __init__ (self, *a, **kw) :
         self._avatar = kw.get("avatar")
-        if kw.has_key("avatar") : del kw["avatar"]
+        if "avatar" in kw :
+            del kw["avatar"]
 
         process.Process.__init__(self, *a, **kw)
 
@@ -566,7 +599,7 @@ class SVNCommandParser (object, ) :
         _re_repo = list(r.finditer(self._command, ), )
 
         _command = self._command
-        for j in range(len(_re_repo) -1, -1, -1, ) :
+        for j in range(len(_re_repo) - 1, -1, -1, ) :
             i = _re_repo[j]
             _parsed = list(urlparse.urlsplit(i.group(2), ), )
             (a, b, _path, ) = map(utils.normpath, (a, b, _parsed[2], ), )
@@ -587,7 +620,7 @@ class SVNCommandParser (object, ) :
         _re_repo = list(r.finditer(self._command, ), )
 
         _command = self._command
-        for j in range(len(_re_repo) -1, -1, -1, ) :
+        for j in range(len(_re_repo) - 1, -1, -1, ) :
             i = _re_repo[j]
             _parsed = list(urlparse.urlsplit(i.group(2), ), )
             (a, b, _path, ) = map(utils.normpath, (a, b, _parsed[2], ), )
@@ -658,7 +691,7 @@ class ServerOptions (_twistd_unix.ServerOptions, ) :
 
     def parseOptions (self, *a, **kw) :
         self._skip_reactor = kw.get("skip_reactor")
-        if kw.has_key("skip_reactor") :
+        if "skip_reactor" in kw :
             del kw["skip_reactor"]
 
         super(ServerOptions, self).parseOptions(*a, **kw)
@@ -682,7 +715,7 @@ class ServerOptions (_twistd_unix.ServerOptions, ) :
         _twistd_unix.ServerOptions.postOptions(self, )
 
         for i in map(lambda x : x[2:x.endswith("=") and -1 or None], self.remove_key, ) :
-            if self.has_key(i) :
+            if i in self :
                 del self[i]
 
         self["uid"] = None
@@ -773,7 +806,7 @@ def run_application () :
 
     factory = SOSFactory()
     factory.privateKeys = {"ssh-rsa": private_key, }
-    factory.publicKeys  = {"ssh-rsa": public_key, }
+    factory.publicKeys = {"ssh-rsa": public_key, }
 
     _config_db = ConfigDatabase.from_filename(_options.get("config"), )
     factory.portal = Portal(

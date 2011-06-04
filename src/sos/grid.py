@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 def decorator_keep_settings (func, ) :
     def wrapper (self, *a, **kw) :
         kw.setdefault("settings", dict(), )
@@ -57,175 +58,26 @@ class Formatter (object, ) :
         return _settings
 
     def format (self, data, **settings) :
-        """
-        >>> data = (("a", "b", ), )
-        >>> check_result_length(Formatter().format(data, num_columns=2, ), )
-        True
-        >>> check_result_length(Formatter().format(data, num_columns=2, ), )
-        True
-        >>> _p(Formatter().format(data, num_columns=2, ), )
-        +=======================+========================+
-        |a                      |b                       |
-        +=======================+========================+
-
-        >>> check_result_length(Formatter().format(data, num_columns=2, ), )
-        True
-        >>> data = (("a" * 10, "b" * 5, ), ("a" * 9, "b" * 4, ), )
-        >>> check_result_length(Formatter().format(data, num_columns=2, ), )
-        True
-        >>> data = (("a", ), )
-        >>> check_result_length(Formatter().format(data, num_columns=1, ), )
-        True
-        >>> _p(Formatter().format(data, num_columns=1, ), )
-        +================================================+
-        |a                                               |
-        +================================================+
-        >>> check_result_length(Formatter().format(data, num_columns=1, ))
-        True
-        >>> list(Formatter().format(data, num_columns=1, ))[1]
-        '|a                                               |'
-
-        >>> data = (("a" * 10, "b" * 5, ), ("a" * 3, "b" * 10, ), )
-        >>> check_result_length(Formatter().format(data, num_columns=2, ))
-        True
-        >>> check_result_length(Formatter().format(data, num_columns=2, ))
-        True
-        >>> check_result_length(Formatter().format(data, column_widths=(30, 10, ), num_columns=3, ))
-        True
-
-        >>> data = (("a" * 20, "b" * 5, ), ("a" * 9, "b" * 40, ), )
-        >>> check_result_length(Formatter().format(data, column_widths=(10, 20, ), num_columns=3, ))
-        True
-        >>> print "\\n".join(Formatter().format(data, column_widths=(10, 20, ), num_columns=3, ))
-        +==========+====================+================+
-        |aaaaaaaaaa|bbbbb               |                |
-        |aaaaaaaaaa|                    |                |
-        +----------+--------------------+----------------+
-        |aaaaaaaaa |bbbbbbbbbbbbbbbbbbbb|                |
-        |          |bbbbbbbbbbbbbbbbbbbb|                |
-        +==========+====================+================+
-
-        >>> data = (("a" * 20, "b" * 20, ), )
-        >>> print "\\n".join(Formatter().format(data, column_widths=(5, 9, ), num_columns=3, ))
-        +=====+=========+================================+
-        |aaaaa|bbbbbbbbb|                                |
-        |aaaaa|bbbbbbbbb|                                |
-        |aaaaa|bb       |                                |
-        |aaaaa|         |                                |
-        +=====+=========+================================+
-
-        >>> data = (("a" * 20, "b" * 20, ), ("a" * 2, "b" * 40, ), )
-        >>> _p(Formatter().format(data, column_widths=(5, 9, ), num_columns=3, ))
-        +=====+=========+================================+
-        |aaaaa|bbbbbbbbb|                                |
-        |aaaaa|bbbbbbbbb|                                |
-        |aaaaa|bb       |                                |
-        |aaaaa|         |                                |
-        +-----+---------+--------------------------------+
-        |aa   |bbbbbbbbb|                                |
-        |     |bbbbbbbbb|                                |
-        |     |bbbbbbbbb|                                |
-        |     |bbbbbbbbb|                                |
-        |     |bbbb     |                                |
-        +=====+=========+================================+
-
-        >>> data = (("a", "b", ), ("a", "b", ), )
-        >>> _p(Formatter().format(data, num_columns=2, head_line_char="*", tail_line_char="@", ))
-        +***********************+************************+
-        |a                      |b                       |
-        +-----------------------+------------------------+
-        |a                      |b                       |
-        +@@@@@@@@@@@@@@@@@@@@@@@+@@@@@@@@@@@@@@@@@@@@@@@@+
-
-        >>> _p(Formatter().format(data, num_columns=2, with_head=False, with_tail=False, ))
-        |a                      |b                       |
-        +-----------------------+------------------------+
-        |a                      |b                       |
-        >>> _p(Formatter().format(data, num_columns=2, with_head=False, with_tail=False, with_body_line=False, ))
-        |a                      |b                       |
-        |a                      |b                       |
-        >>> _p(Formatter().format(data, padding=1, num_columns=2, with_head=False, with_tail=False, with_body_line=False, ))
-        | a                     | b                      |
-        | a                     | b                      |
-
-        >>> data = (("a" * 40, "b" * 20, ), )
-        >>> check_result_length(Formatter().format(data, padding=1, num_columns=2, ))
-        True
-        >>> check_result_length(Formatter().format(data, padding=1, num_columns=2, ))
-        True
-        >>> _p(Formatter().format(data, padding=1, num_columns=2, ))
-        +=======================+========================+
-        | aaaaaaaaaaaaaaaaaaaaa | bbbbbbbbbbbbbbbbbbbb   |
-        | aaaaaaaaaaaaaaaaaaa   |                        |
-        +=======================+========================+
-
-        add caption
-        >>> data = (("a" * 40, "b" * 20, ), ("a" * 10, "b" * 40, ), )
-        >>> check_result_length(Formatter().format(data, num_columns=2, captions=("this is long long long long long long long long long long long key", "this is value", ), ))
-        True
-        >>> _p(Formatter().format(data, num_columns=2, captions=("this is long long long long long long long long long long long key", "this is value", ), ))
-        +=======================+========================+
-        |this is long long long |this is value           |
-        |long long long long lon|                        |
-        |g long long long key   |                        |
-        +=======================+========================+
-        |aaaaaaaaaaaaaaaaaaaaaaa|bbbbbbbbbbbbbbbbbbbb    |
-        |aaaaaaaaaaaaaaaaa      |                        |
-        +-----------------------+------------------------+
-        |aaaaaaaaaa             |bbbbbbbbbbbbbbbbbbbbbbbb|
-        |                       |bbbbbbbbbbbbbbbb        |
-        +=======================+========================+
-
-        >>> data = (("a" * 3, "b", ), ("a", "b", ), )
-        >>> _p(Formatter().format(data, num_columns=2, padding=1, fit_value_width=True, ))
-        +=====+==========================================+
-        | aaa | b                                        |
-        +-----+------------------------------------------+
-        | a   | b                                        |
-        +=====+==========================================+
-
-        >>> data = (('/tmp/git.git', '/git'), ('/tmp/test_repo', '/svn (show me the truth)'), )
-        >>> _p(Formatter().format(data, column_widths=(15, ), num_columns=2, padding=1, width=50, ))
-        +===============+================================+
-        | /tmp/git.git  | /git                           |
-        +---------------+--------------------------------+
-        | /tmp/test_rep | /svn (show me the truth)       |
-        | o             |                                |
-        +===============+================================+
-        >>> _p(Formatter().format(data, min_column_width=15, num_columns=2, padding=1, width=50, ))
-        +=======================+========================+
-        | /tmp/git.git          | /git                   |
-        +-----------------------+------------------------+
-        | /tmp/test_repo        | /svn (show me the trut |
-        |                       | h)                     |
-        +=======================+========================+
-
-        >>> _p(Formatter().format(data, num_columns=2, padding=1, width=100, ))
-        +================================================+=================================================+
-        | /tmp/git.git                                   | /git                                            |
-        +------------------------------------------------+-------------------------------------------------+
-        | /tmp/test_repo                                 | /svn (show me the truth)                        |
-        +================================================+=================================================+
-
-
-
-        """
         _settings = self._get_settings(data, settings, )
 
         _b = "%s%%%%-%%ds" % _settings.get("column_sep_in_body_char")
-        _tmpl_body = (_b * _settings.get("num_columns", )).strip() % tuple(_settings.get("column_widths"))
+        _tmpl_body = (_b * _settings.get("num_columns", )).strip() % tuple(
+                _settings.get("column_widths"))
         _tmpl_body += _settings.get("column_sep_in_body_char")
 
         _b = "%s%%%%-%%ds" % _settings.get("head_line_char")
-        _tmpl_line_head = (_b * _settings.get("num_columns", )).strip() % tuple(_settings.get("column_widths"))
+        _tmpl_line_head = (_b * _settings.get("num_columns", )).strip() % tuple(
+                _settings.get("column_widths"))
         _tmpl_line_head += _settings.get("head_line_char")
 
         _b = "%s%%%%-%%ds" % _settings.get("tail_line_char")
-        _tmpl_line_tail = (_b * _settings.get("num_columns", )).strip() % tuple(_settings.get("column_widths"))
+        _tmpl_line_tail = (_b * _settings.get("num_columns", )).strip() % tuple(
+                _settings.get("column_widths"))
         _tmpl_line_tail += _settings.get("tail_line_char")
 
         _b = "%s%%%%-%%ds" % _settings.get("column_sep_in_line_char")
-        _tmpl_line = (_b * _settings.get("num_columns", )).strip() % tuple(_settings.get("column_widths"))
+        _tmpl_line = (_b * _settings.get("num_columns", )).strip() % tuple(
+                _settings.get("column_widths"))
         _tmpl_line += _settings.get("column_sep_in_line_char")
 
         if _settings.get("with_head") :
@@ -237,7 +89,8 @@ class Formatter (object, ) :
             )
 
         if settings.get("captions") :
-            for i in self.print_value(_tmpl_body, settings.get("captions"), settings=_settings, ) :
+            for i in self.print_value(_tmpl_body,
+                    settings.get("captions"), settings=_settings, ) :
                 yield i
 
             if _settings.get("with_body_line") :
@@ -285,10 +138,14 @@ class Formatter (object, ) :
     def _check_column_width (self, data, settings=None, ) :
         _column_width = list(settings.get("column_widths"))
         if len(_column_width) < settings.get("num_columns") :
-            _column_width.extend([0, ] * (settings.get("num_columns") - len(_column_width, )))
-            
+            _column_width.extend(
+                    [0, ] * (
+                        settings.get("num_columns") - len(_column_width, ))
+            )
+
         _column_width = map(
-            lambda x : x < settings.get("min_column_width") and settings.get("min_column_width") or x,
+            lambda x : x < settings.get("min_column_width") and
+                settings.get("min_column_width") or x,
             _column_width
         )
 
@@ -300,14 +157,17 @@ class Formatter (object, ) :
             )
         elif _current_width < settings.get("width") :
             _column_width[-1] = settings.get("width") - sum(
-                _column_width[:len(_column_width) - 1]) - settings.get("num_columns") - 1
+                    _column_width[:len(_column_width) - 1]
+                ) - settings.get("num_columns") - 1
 
         if settings.get("fit_value_width") and data :
             for i in range(settings.get("num_columns") - 1, ) :
-                _column_width[i] = self._get_max(data, i, ) + (2 * settings.get("padding"))
+                _column_width[i] = self._get_max(
+                        data, i, ) + (2 * settings.get("padding"))
 
             _column_width[-1] = settings.get("width") - sum(
-                _column_width[:len(_column_width) - 1]) - settings.get("num_columns") - 1
+                _column_width[:len(_column_width) - 1]
+                ) - settings.get("num_columns") - 1
 
         return tuple(_column_width)
 
@@ -329,7 +189,7 @@ class Formatter (object, ) :
         elif len(data) > settings.get("num_columns") :
             data = list(data)[:settings.get("num_columns")]
 
-        # cut the each value by whether overflow or not. 
+        # cut the each value by whether overflow or not.
         _column_width = settings.get("column_widths")
         _lines = list()
         for i in range(len(data)) :
@@ -338,7 +198,11 @@ class Formatter (object, ) :
                 _lines[i].append(data[i], )
                 continue
 
-            _x = range(0, len(data[i]), _column_width[i] - (2 * settings.get("padding")), )
+            _x = range(
+                    0,
+                    len(data[i]),
+                    _column_width[i] - (2 * settings.get("padding")),
+            )
             for j in range(len(_x)) :
                 _sl = slice(
                     _x[j],
@@ -348,21 +212,12 @@ class Formatter (object, ) :
                     data[i][_sl.start:_sl.stop:_sl.step]
                 )
 
-        _b = "%s%%s%s" % (" " * settings.get("padding"), " " * settings.get("padding"), )
+        _b = "%s%%s%s" % (
+                " " * settings.get("padding"),
+                " " * settings.get("padding"),
+            )
 
         for i in range(max(map(len, _lines, ))) :
-            yield tmpl % tuple(i < len(j) and (_b % j[i]) or str() for j in _lines)
-
-
-
-if __name__ == "__main__"  :
-    def check_result_length (result, ) :
-       return list(set(map(len, result))) == [Formatter.available_settings.get("width"), ]
-    def _p (result, ) :
-       print "\n".join(result, )
-
-    import doctest
-    doctest.testmod()
-
-
-
+            yield tmpl % tuple(
+                    i < len(j) and (_b % j[i]) or str() for j in _lines
+                )
