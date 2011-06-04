@@ -25,7 +25,7 @@ class SOSbuild_py (build_py, ) :
 setup(
     cmdclass=dict(build_py=SOSbuild_py, ),
     name="source+over+ssh",
-    version="0.1",
+    version="0.2",
     description="source repository management server over ssh",
     long_description=long_description.replace("\n", " ").strip(),
     author="Spike^ekipS",
