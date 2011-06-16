@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import os
-import re
 import ConfigParser
 import hashlib
+import re
 from StringIO import StringIO
 
 import utils
-import _exceptions
 
 
 class ConfigDatabase (object, ) :
@@ -19,6 +17,7 @@ class ConfigDatabase (object, ) :
     default_repository = {
         "description": None,
         "path": None,
+        "password": None,
     }
 
     default_user = {
@@ -31,6 +30,9 @@ class ConfigDatabase (object, ) :
     }
     datatype_user = {
         "repository": "list",
+    }
+    datatype_repository = {
+        "port": "int",
     }
 
     @classmethod
@@ -47,6 +49,14 @@ class ConfigDatabase (object, ) :
         self._config.readfp(fp, )
 
         self._parse()
+
+    @property
+    def raw_config (self, ) :
+        _s = StringIO()
+        self.save(_s, )
+
+        _s.seek(0, 0, )
+        return _s.getvalue()
 
     def rename_section (self, old, new, ) :
         if old == new :
@@ -65,14 +75,6 @@ class ConfigDatabase (object, ) :
 
     def _parse (self, ) :
         pass
-
-    @property
-    def raw_config (self, ) :
-        _s = StringIO()
-        self.save(_s, )
-
-        _s.seek(0, 0, )
-        return _s.getvalue()
 
     def save (self, fp=None, ) :
         _save_original = not bool(fp, )
@@ -284,14 +286,14 @@ class ConfigDatabase (object, ) :
 
     def has_repository (self, alias=None, path=None, ) :
         if alias :
-            return self._config.has_section(self._r(alias), )
+            return self._config.has_section(self._r(utils.normpath(alias, )), )
         elif path :
             path = utils.normpath(path, )
             for i in self.repositories :
                 if self.get_repository_property(i, "path", "", ) == path :
                     return True
 
-            return False
+        return False
 
     def get_repository_property (self, alias, p, default=None, ) :
         if not self.has_repository(alias, ) :
@@ -301,29 +303,26 @@ class ConfigDatabase (object, ) :
             raise KeyError("'%s' does not exist." % p, )
 
         try :
-            _r = self._config.get(self._r(alias), p, )
+            _r = self._config.get(self._r(utils.normpath(alias), ), p, )
         except :
             return default
 
-        return list(self.to_python_properties(**{p: _r, }))[0][1]
+        return list(self.to_python_properties(
+            datatype=self.datatype_repository, **{p: _r, }))[0][1]
 
-    def add_repository (self, path, alias=None, *description, **properties) :
-        if alias is None :
-            alias = path
-
-        (path, alias, ) = map(utils.normpath, (path, alias, ), )
-        if not os.path.exists(path, ) or not os.path.isdir(path, ) :
-            raise _exceptions.BAD_ARGUMENT(
-                    "'%s' is not directory, check it." % path, )
-
+    def add_repository (self, path, alias, **properties) :
         if self.has_repository(alias, ) :
             raise KeyError("'%s' already exists." % alias, )
 
         self._config.add_section(self._r(alias), )
 
+        if not utils.is_remote_repository_path(path, ) :
+            path = utils.normpath(path, )
+
         properties["path"] = path
-        if description :
-            properties["description"] = " ".join(description, )
+        if "description" in properties :
+            properties["description"] = " ".join(
+                    properties.get("description"), )
 
         for i, j in self.to_config_properties(
                 self.default_repository, **properties) :
@@ -366,6 +365,7 @@ class ConfigDatabase (object, ) :
         if not self.has_repository(old, ) :
             raise KeyError("'%s' does not exist." % old, )
 
+        new = utils.normpath(new, )
         if self.has_repository(new, ) :
             raise KeyError("'%s' alreay exists." % new, )
 
@@ -385,3 +385,20 @@ class ConfigDatabase (object, ) :
     @classmethod
     def encrypt_password (cls, s, ) :
         return hashlib.sha1(s).hexdigest()
+
+    def is_remote_repository (self, alias, ) :
+        return utils.is_remote_repository_path(
+                self.get_repository_property(alias, "path", ), )
+
+    def parse_remote_repository (self, alias, ) :
+        if not self.is_remote_repository(alias, ) :
+            raise ValueError("'%s' is not remote repository path." % alias, )
+
+        return utils.parse_remote_repository(self.get_repository_property(alias, "path", ), )
+
+
+if __name__ == "__main__" :
+    import doctest
+    doctest.testmod()
+
+

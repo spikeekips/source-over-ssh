@@ -305,6 +305,8 @@ True
 >>> _sc = ShellCommand("dir", _cd, window_size=(40, 50, ))
 >>> print "\\n".join(_sc.run("user view"), )
 ==================================================
+ key             value                           
+=============== ================================ 
  username        dir                             
 --------------- -------------------------------- 
  has password?   yes                             
@@ -430,45 +432,52 @@ True
 >>> _sc = ShellCommand("user-a", _cd, )
 >>> print "\\n".join(_sc.run("admin user list"))
 ====================================================================================================
- user-a *   "AAA" <a@a.com>                                                                        
----------- --------------------------------------------------------------------------------------- 
- user-b     b@b.com                                                                                
+ username   realname          is admin?                                                            
+========== ================= ===================================================================== 
+ user-a     "AAA" <a@a.com>   O                                                                    
+---------- ----------------- --------------------------------------------------------------------- 
+ user-b     b@b.com           X                                                                    
 ====================================================================================================
-(* is `admin`)
-
 
 >>> _cfg = "[user:user-a]\\nrealname=AAA\\nemail=a@a.com\\nadmin = on\\n[user:user-b]\\nrealname=b@b.com\\n"
 >>> _cd = ConfigDatabase.from_string(_cfg, )
 >>> _sc = ShellCommand("user-a", _cd, )
 >>> print "\\n".join(_sc.run("admin user search a"))
 ====================================================================================================
- user-a *   "AAA" <a@a.com>                                                                        
+ username   realname          is admin?                                                            
+========== ================= ===================================================================== 
+ user-a     "AAA" <a@a.com>   O                                                                    
 ====================================================================================================
-(* is `admin`)
+
 
 >>> print "\\n".join(_sc.run("admin user search .com"))
 ====================================================================================================
- user-a *   "AAA" <a@a.com>                                                                        
----------- --------------------------------------------------------------------------------------- 
- user-b     b@b.com                                                                                
+ username   realname          is admin?                                                            
+========== ================= ===================================================================== 
+ user-a     "AAA" <a@a.com>   O                                                                    
+---------- ----------------- --------------------------------------------------------------------- 
+ user-b     b@b.com           X                                                                    
 ====================================================================================================
-(* is `admin`)
 
 
->>> _cfg = "[user:a]\\nadmin=on\\n[repository:a]\\npath=/a\\ndescription=Wow\\n[repository:b]\\npath=/c\\ndescription=Call Me\\n[user:a]\\nrepository=a\\n"
+>>> _cfg = "[user:a]\\nadmin=on\\n[repository:/a]\\npath=/a\\ndescription=Wow\\n[repository:/b]\\npath=/c\\ndescription=Call Me\\n[user:a]\\nrepository=/a\\n"
 >>> _cd = ConfigDatabase.from_string(_cfg, )
 >>> _sc = ShellCommand("a", _cd, )
 >>> print "\\n".join(_sc.run("repo list"))
 ====================================================================================================
- /a   a (Wow)                                                                                      
-====================================================================================================
->>> print "\\n".join(_sc.run("admin repo list"))
-====================================================================================================
- /a   a (Wow)                                                                                      
----- --------------------------------------------------------------------------------------------- 
- /c   b (Call Me)                                                                                  
+ path   alias      is remote?                                                                      
+====== ========== ================================================================================ 
+ /a     /a (Wow)    X                                                                              
 ====================================================================================================
 
+>>> print "\\n".join(_sc.run("admin repo list"))
+====================================================================================================
+ path   alias          is remote?                                                                  
+====== ============== ============================================================================ 
+ /c     /b (Call Me)    X                                                                          
+------ -------------- ---------------------------------------------------------------------------- 
+ /a     /a (Wow)        X                                                                          
+====================================================================================================
 
 >>> _cd = ConfigDatabase.from_string("[user:a]\\nadmin=true", )
 >>> _sc = ShellCommand("a", _cd, )
@@ -517,7 +526,7 @@ False
 True
 
 
->>> _cfg = "[user:a]\\nadmin=on\\n[repository:a]\\n[user:aa]"
+>>> _cfg = "[user:a]\\nadmin=on\\n[repository:/a]\\n[user:aa]"
 >>> _cd = ConfigDatabase.from_string(_cfg, )
 >>> _sc = ShellCommand("a", _cd, )
 >>> _sc.run("admin repo allow user")
@@ -534,7 +543,7 @@ KeyError: "'aa' does not exist."
 ['a']
 
 
->>> _cfg = "[user:a]\\nadmin=on\\n[repository:a]\\n[user:aa]\\nrepository=a"
+>>> _cfg = "[user:a]\\nadmin=on\\n[repository:/a]\\n[user:aa]\\nrepository=/a"
 >>> _cd = ConfigDatabase.from_string(_cfg, )
 >>> _sc = ShellCommand("a", _cd, )
 >>> _sc.run("admin repo disallow user")
@@ -546,9 +555,54 @@ Traceback (most recent call last):
 ...
 KeyError: "'aa' does not exist."
 
->>> _sc.run("admin repo disallow user aa a") and None
+>>> _sc.run("admin repo disallow user aa /a") and None
 >>> _cd.get_user_property("aa", "repository", )
 []
+
+>>> _cfg = "[user:a]\\nadmin=on\\n[repository:/a]\\npath=/tmp"
+>>> _cd = ConfigDatabase.from_string(_cfg, )
+>>> _sc = ShellCommand("a", _cd, )
+>>> _sc.run("admin repo add remote svn+ssh://dev/tmp/test_svn_repo/", )
+Traceback (most recent call last):
+...
+NOT_ENOUGH_ARGUMENT: not enough argument
+
+>>> _sc.run("admin repo add remote svn+ssh://dev/tmp/test_svn_repo/ this-is-password", ) and None
+Traceback (most recent call last):
+...
+BAD_ARGUMENT: `user` must be set, like `<user>@<host>`
+
+>>> _sc.run("admin repo add remote svn+ssh://ekips@dev/tmp/test_svn_repo/ this-is-password", ) and None
+>>> _cd.has_repository("/tmp/test_svn_repo/")
+True
+>>> _cd.get_repository_property("/tmp/test_svn_repo/", "password", )
+'this-is-password'
+>>> print "\\n".join(_sc.run("admin repo list"))
+====================================================================================================
+ path                                     alias                is remote?                          
+======================================== ==================== ==================================== 
+ /tmp                                     /a                    X                                  
+---------------------------------------- -------------------- ------------------------------------ 
+ svn+ssh://ekips@dev/tmp/test_svn_repo/   /tmp/test_svn_repo    O                                  
+====================================================================================================
+
+>>> _sc.run("admin repo remove /tmp/test_svn_repo") and None
+>>> _cd.has_repository("/tmp/test_svn_repo/")
+False
+
+>>> _sc.run("admin repo add remote svn+ssh://ekips@dev:2020/tmp/test_svn_repo/ this-is-password /alias this is description", ) and None
+>>> _cd.has_repository("/alias")
+True
+>>> print "\\n".join(_sc.run("admin repo list"))
+====================================================================================================
+ path                                          alias                          is remote?           
+============================================= ============================== ===================== 
+ svn+ssh://ekips@dev:2020/tmp/test_svn_repo/   /alias (this is description)    O                   
+--------------------------------------------- ------------------------------ --------------------- 
+ /tmp                                          /a                              X                   
+====================================================================================================
+
+
 """
 
 

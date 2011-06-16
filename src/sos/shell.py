@@ -1,12 +1,127 @@
 # -*- coding: utf-8 -*-
 
-import shlex
+import os
 import re
+import shlex
+import uuid
 
+from twisted.conch import error as error_conch, recvline
 from twisted.conch.ssh.keys import Key, BadKeyError
+from twisted.internet import defer, error as error_internet
 
 import _exceptions
 import utils
+
+
+class SOSProtocol (recvline.HistoricRecvLine, ) :
+    TERMINAL_COLOR_SUPPORTED = ("xterm", "xterm-color", "linux", )
+
+    def __init__(self, avatar, ) :
+        self._avatar = avatar
+        self._config_db = self._avatar._config_db
+
+        self._is_xterm = self._avatar._env.get("TERM", "xterm",
+                ) in self.TERMINAL_COLOR_SUPPORTED
+
+        _ms = filter(lambda f: f.startswith("command_"), dir(self))
+        self._commands = [c.replace("command_", "", 1) for c in _ms]
+
+    def connectionMade (self, ) :
+        recvline.HistoricRecvLine.connectionMade(self, )
+
+        self.keyHandlers.update({
+            "\x04": self._quit,
+            "\x08": self.handle_BACKSPACE,
+            "\x15": self.handle_CLEAR_LINE,
+        }, )
+
+        self.write("Welcome to source+over+ssh server.")
+        self._help()
+        self.showPrompt()
+
+    def initializeScreen (self, ) :
+        self.setInsertMode()
+
+    def handle_CLEAR_LINE (self, ) :
+        while self.lineBufferIndex > 0 :
+            self.handle_BACKSPACE()
+
+    def write (self, s, p=False, ) :
+        self.terminal.write(s)
+        if not p :
+            self.terminal.nextLine()
+
+    def lineReceived (self, line, ) :
+        if self._avatar._verbose and line.strip() :
+            utils.debug("avatar: data received: %s" % ([line, ], ), )
+
+        line = line.strip()
+        if not line :
+            self.showPrompt()
+            return
+
+        _sc = ShellCommand(
+            self._avatar.username,
+            self._config_db,
+            is_xterm=self._is_xterm,
+            window_size=self._avatar._window_size[:2],
+        )
+        try :
+            _messages = _sc.run(line, )
+        except _exceptions.CLEAR :
+            self.terminal.reset()
+        except _exceptions.QUIT :
+            return self._quit()
+        except _exceptions.PERMISSION_DENIED, e :
+            self.write("error: %s" % e, )
+        except Exception, e :
+            if self._avatar._verbose and not isinstance(e,
+                        (_exceptions.NO_SUCH_COMMAND,
+                        _exceptions.NOT_ENOUGH_ARGUMENT,
+                        _exceptions.BAD_ARGUMENT, )
+                    ) :
+                import traceback
+                traceback.print_exc()
+
+            self.write("error: %s" % e, )
+            try :
+                _h = _sc.run("help " + line, )
+            except :
+                _h = _sc.run("help")
+
+            for i in _h :
+                self.write(i, )
+        else :
+            if isinstance(_messages, defer.Deferred, ) :
+                return _messages.addCallback(
+                            lambda x : map(self.write, x, ),
+                        ).addCallback(
+                                lambda x : self.showPrompt(), )
+
+            for i in _messages :
+                self.write(i, )
+
+        self.showPrompt()
+
+    def showPrompt(self):
+        _s = (self._is_xterm and "\033[01;32m%s\033[00m $ " or "%s $") % (
+                self._avatar.username, )
+        self.write("sso: " + _s, p=True, )
+
+    ##################################################
+    # commands
+    def _quit (self, ) :
+        self.terminal.loseConnection()
+
+    def _help (self, ) :
+        _sc = ShellCommand(
+            self._avatar.username,
+            self._config_db,
+            is_xterm=self._is_xterm,
+            window_size=self._avatar._window_size[:2],
+        )
+        for i in _sc.run("help", ) :
+            self.write(i, )
 
 
 class BaseCommandParser (object, ) :
@@ -280,6 +395,8 @@ class AdminCommandParser (CommandParser, ) :
 
     > admin repo list
     > admin repo add <repo path> [<alias>]
+    > admin repo add remote <remote repo uri> <password> [<alias>]
+    > admin repo check <alias>
     > admin repo remove <alias>
     > admin repo rename <alias> <new alias>
     > admin repo allow user <username> <alias>
@@ -307,6 +424,8 @@ class AdminCommandParser (CommandParser, ) :
     helps = {
         "admin repo list":              "$ admin repo list",
         "admin repo add":               "$ admin repo add <repo path> [<alias>] [<description>]",
+        "admin repo add remote":        "$ admin repo add remote <remote repo uri> <password> [<alias>] [<description>]",
+        "admin repo check":             "$ admin repo check <alias>",
         "admin repo remove":            "$ admin repo remove <alias>",
         "admin repo rename":            "$ admin repo rename <alias> <new alias>",
         "admin repo allow user":        "$ admin repo allow user <username> <alias>",
@@ -343,7 +462,17 @@ class AdminCommandParser (CommandParser, ) :
         _sub = a[0]
         _r = dict(subcommand=_sub, )
         if _sub == "add" and len(a) > 1 :
-            _r["args"] = tuple(a[1:], )
+            if a[1] == "remote" :
+                if len(a[2:]) < 2 :
+                    raise _exceptions.NOT_ENOUGH_ARGUMENT
+
+                _r["subcommand"] = a[:2]
+                _r["args"] = tuple(a[2:], )
+            else :
+                _r["args"] = tuple(a[1:], )
+            return _r
+        elif _sub == "check" and len(a) == 2 :
+            _r["args"] = (a[1], )
             return _r
         elif _sub == "remove" and len(a) == 2 :
             _r["args"] = (a[1], )
@@ -479,8 +608,10 @@ class ShellCommand (object, ) :
         self._is_xterm = is_xterm
         self._window_size = window_size
 
+        self._is_admin = self._config_db.is_admin(self._username, )
+
     def run (self, line, ) :
-        if shlex.split(line, )[0] == "admin" and not self._config_db.is_admin(self._username, ) :
+        if shlex.split(line, )[0] == "admin" and not self._is_admin :
             raise _exceptions.PERMISSION_DENIED
 
         _parsed = CommandParser(line, ).parse()
@@ -511,7 +642,7 @@ class ShellCommand (object, ) :
         if len(a) < 1 :
             _l = CommandParser(
                 None,
-                is_admin=self._config_db.is_admin(self._username, ),
+                is_admin=self._is_admin,
             ).get_help()
 
         if _l is None :
@@ -549,7 +680,7 @@ class ShellCommand (object, ) :
         _respositories = self._config_db.get_user_property(username, "repository", )
         _values.append(("repository", _respositories and ", ".join(_respositories) or "", ), )
 
-        return utils.format_data(_values, width=self._window_size[1], )
+        return utils.format_data(_values, width=self._window_size[1], captions=("key", "value", ), )
 
     def c_user_add (self, a, username, **kw) :
         self._config_db.add_user(username, password=a[0], ).save()
@@ -595,20 +726,20 @@ class ShellCommand (object, ) :
     def print_user_list (self, userlist, ) :
         _values = map(
             lambda x : (
-                self._config_db.is_admin(x) and ("%s *" % x) or x,
+                x,
                 self._config_db.get_full_username(x),
+                self._config_db.is_admin(x) and "O" or "X",
             ),
             userlist,
         )
 
-        _l = [i for i in utils.format_data(
-            _values and _values or (("no users", "", ), ),
-            width=self._window_size[1], )]
-
-        if _values :
-            _l.append("(* is `admin`)", )
-
-        return _l
+        return [
+                i for i in utils.format_data(
+                    _values and _values or (("no users", "", ), ),
+                    width=self._window_size[1],
+                    captions=("username", "realname", "is admin?", ),
+                )
+        ]
 
     def c_user_list (self, a, **kw) :
         return self.print_user_list(self._config_db.users, )
@@ -624,29 +755,107 @@ class ShellCommand (object, ) :
 
         _values = map(
             lambda x : (
-                self._config_db.get_repository_property(x, "path"),
+                "%s" % (
+                    self._config_db.get_repository_property(x, "path"),
+                ),
                 "%s%s" % (
                     x,
                     self._config_db.get_repository_property(x, "description", "").strip() and (
                         " (%s)" % self._config_db.get_repository_property(x, "description", "").strip()
                     ) or "",
                 ),
+                self._config_db.is_remote_repository(x) and " O" or " X",
             ),
             _repos,
         )
-        _values.sort()
-        return utils.format_data(_values, width=self._window_size[1], )
+        #_values.sort()
+        return utils.format_data(
+            _values,
+            width=self._window_size[1],
+            captions=("path", "alias", "is remote?", ),
+            num_columns=3,
+        )
 
     def c_repo_add (self, a, **kw) :
         if len(a) < 2 :
             a = list(a)
             a.extend(a, )
 
+        a = map(utils.normpath, a)
+        if not os.path.exists(a[0], ) or not os.path.isdir(a[0], ) :
+            raise _exceptions.BAD_ARGUMENT(
+                    "'%s' is not directory, check it." % a[0], )
+
         self._config_db.add_repository(*a).save()
         _l = ["repository, '%s', alias, '%s' was added." % (a[0], a[1], ), "", ]
         _l.extend(list(self.c_repo_list(None, **kw)), )
 
         return tuple(_l)
+
+    def c_repo_add_remote (self, a, **kw) :
+        a = list(a)
+        a.extend(["", "", ])
+
+        (_uri, _password, _alias, ) = a[:3]
+        _description = a[3:]
+        _parsed = utils.parse_remote_repository(_uri, )
+        if not _parsed.get("user") :
+            raise _exceptions.BAD_ARGUMENT("`user` must be set, like `<user>@<host>`")
+
+        if not _alias.strip() :
+            if not self._config_db.has_repository(_parsed.get("path"), ) :
+                _alias = _parsed.get("path")
+            else :
+                _alias = "/" + uuid.uuid1().hex
+
+        _a = [_uri, _alias, ]
+        self._config_db.add_repository(*_a, **dict(
+            description=_description, password=_password, )).save()
+        _l = ["remote repository, '%s', alias, '%s' was added." % (_uri, _alias, ), "", ]
+        _l.extend(list(self.c_repo_list(None, **kw)), )
+
+        return tuple(_l)
+
+    def c_repo_check (self, a, **kw) :
+        if not self._config_db.is_remote_repository(a[0]) :
+            _path = self._config_db.get_repository_property(a[0], "path", )
+            if not os.path.exists(_path, ) or not os.path.isdir(_path, ) :
+                return ("error: '%s' is not valid repository directory, check it." % _path, )
+
+            return ("'%s' is valid repository path." % _path, )
+
+        _path = self._config_db.get_repository_property(a[0], "path", )
+        _parsed = utils.parse_remote_repository(_path, )
+
+        from ssh_factory import SSHClient
+        _client = SSHClient(
+            None,
+            _parsed.get("host"),
+            _parsed.get("port", ),
+            _parsed.get("user"),
+            self._config_db.get_repository_property(a[0], "password", None, ),
+        )
+
+        def _cb_open_session (r, ) :
+            _client.close()
+            return ("remote repository, '%s'('%s') is accessible." % (a[0], _path, ), )
+
+        def _eb_open_session (f, ) :
+            _client.close()
+            _r = ["error: remote repository, '%s'('%s') can not be accessible." % (a[0], _path, ), ]
+
+            _e = None
+            if f.check(error_internet.DNSLookupError, ) :
+                _e = f.value.message
+            elif f.check(error_conch.ConchError, ) :
+                _e = "authentication failed, check the username or password."
+
+            if _e :
+                _r.append("\t- %s" % _e)
+
+            return _r
+
+        return _client.connect().addCallbacks(_cb_open_session, _eb_open_session, )
 
     def c_repo_remove (self, a, **kw) :
         self._config_db.remove_repository(a[0], ).save()

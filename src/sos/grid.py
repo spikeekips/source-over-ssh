@@ -42,6 +42,9 @@ class Formatter (object, ) :
         _settings = dict(self.available_settings.items(), )
         _settings.update(settings, )
 
+        if _settings.get("captions") and settings.get("num_columns") < len(_settings.get("captions")) :
+            _settings["num_columns"] = len(_settings.get("captions"), )
+
         if not _settings.get("column_widths") :
             _settings["column_widths"] = self._calculate_column_width(
                 _settings.get("width"),
@@ -54,6 +57,9 @@ class Formatter (object, ) :
         )
         if _settings.get("captions") :
             _settings["with_head"] = True
+            _settings["captions"] = list(_settings.get("captions"))
+            _settings["captions"].extend(["", ] * (_settings.get("num_columns") - len(_settings.get("captions"), )), )
+            _settings["captions"] = tuple(_settings.get("captions"))
 
         return _settings
 
@@ -161,9 +167,14 @@ class Formatter (object, ) :
                 ) - settings.get("num_columns") - 1
 
         if settings.get("fit_value_width") and data :
+            _data = data
+            if settings.get("captions") :
+                _data = list(data)
+                _data.insert(0, settings.get("captions"), )
+
             for i in range(settings.get("num_columns") - 1, ) :
                 _column_width[i] = self._get_max(
-                        data, i, ) + (2 * settings.get("padding"))
+                        _data, i, ) + (2 * settings.get("padding"))
 
             _column_width[-1] = settings.get("width") - sum(
                 _column_width[:len(_column_width) - 1]

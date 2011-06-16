@@ -2,7 +2,7 @@
 
 """
 
->>> from sos.servers import SVNCommandParser
+>>> from sos._svn import SVNCommandParser
 
 with `edit-pipeline`
 >>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev/a/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
