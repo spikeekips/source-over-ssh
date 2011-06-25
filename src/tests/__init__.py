@@ -2,8 +2,9 @@
 
 __all__ = [
     "test_config_db",
-    "test_servers",
+    "test_grid",
     "test_shell",
+    "test_svn",
 ]
 
 

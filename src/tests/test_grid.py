@@ -159,13 +159,13 @@ True
 
 """
 
-if __name__ == "__main__" :
-    from sos.grid import Formatter 
+from sos.grid import Formatter 
+def check_result_length (result, ) :
+   return list(set(map(len, result))) == [Formatter.available_settings.get("width"), ]
+def _p (result, ) :
+   print "\n".join(result, )
 
-    def check_result_length (result, ) :
-       return list(set(map(len, result))) == [Formatter.available_settings.get("width"), ]
-    def _p (result, ) :
-       print "\n".join(result, )
+if __name__ == "__main__" :
 
     import doctest
     doctest.testmod()
