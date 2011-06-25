@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+
+import re
 import shlex
 
-from twisted.internet import defer, error as error_internet
+from twisted.internet import defer
 
 import _base
 import ssh_factory
@@ -33,18 +35,16 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
                 self._alias, )
 
         def _cb_open_session (r, ) :
+            self._client.dataReceived = self._session.write
+            self._client.extReceived = self._session.writeExtended
+
             self._client.open_session(
                 "%s '%s'" % (
                     _parsed[0],
                     _r_parsed.get("path"),
                 ),
             )
-            self._client.dataReceived = self._session.write
-            return
-
-        def _eb_open_session (f, ) :
-            if f.check(error_internet.ConnectionRefusedError, ) :
-                self._session.loseConnection()
+            return None
 
         self._client = ssh_factory.SSHClient(
             self._session,
@@ -53,8 +53,7 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
             _r_parsed.get("user"),
             self._config_db.get_repository_property(self._alias, "password", None, ),
         )
-        self._client.connect().addCallbacks(_cb_open_session, _eb_open_session, )
-        return None
+        return self._client.connect().addCallback(_cb_open_session, )
 
     def to_server (self, data, ) :
         _d = defer.maybeDeferred(super(SessionTunnel, self, ).to_server, data, )
@@ -62,5 +61,15 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
             _d.addCallback(self._client.write, )
 
         return _d
+
+    RE_MSG_FATAL_NO_REPOSITORY = re.compile("fatal: '(.*)' does not appear to be a git repository", re.I, )
+
+    def parse_to_client_extended (self, data, ) :
+        _r = self.RE_MSG_FATAL_NO_REPOSITORY.search(data, )
+        if _r :
+            return data[:_r.start(1)] + self._alias + data[_r.end(1):]
+
+        return data
+
 
 

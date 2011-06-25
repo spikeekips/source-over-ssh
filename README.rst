@@ -3,20 +3,20 @@ source+over+ssh
 ##################################################
 
 `source+over+ssh` (aka, `sos`) manages the multiple source repositories over `ssh`
-with *virtual* user account. it supports `svn`, `git` without any further
+with *virtual* user account. It supports `svn`, `git` without any further
 configuration of your client and also provide the management shell through
 `ssh`.
 
-the one of the reason, why `source+over+ssh` was written was, that is. when you
+The one of the reason, why `source+over+ssh` was written was, that is. When you
 serve the `svn` or `git` source repositories through ssh, you must create and
 provide the actual system account (maybe that account be able to access to the
-system shell, though you use ``git-shell``, it also can be the shell.). using
-`source+over+ssh` you don't need these kind of security problem. in the
+system shell, though you use ``git-shell``, it also can be the shell.). Using
+`source+over+ssh` you don't need these kind of security problem. In the
 `source+over+ssh`, there is no actual system account, every user is **virtual**.
-you can protect your system from accidental security problems.
+You can protect your system from accidental security problems.
 
 
-feature
+Feature
 ##################################################
 
  - **virtual user** (not actual system account)
@@ -26,17 +26,17 @@ feature
  - **mirroring the remote repositories thru ssh**
 
 
-install
+Install
 ##################################################
 
 `source+over+ssh` is written in `Python` and depends on the `Twisted Network
 Framework`, especially `Twisted Conch`, so to install the `sos` you need
-`Python` and `Twisted Conch`. if you install `sos` thru `pip`_, `pip` will
+`Python` and `Twisted Conch`. If you install `sos` thru `pip`_, `pip` will
 install these things automatically with `sos`, but if you install from source,
 you install these manually.
 
 
-use `pip` (**not yet supported**)
+Use `pip` (**not yet supported**)
 ==================================================
 
 using `pip`, just search `source-over-ssh` and install it. ::
@@ -44,10 +44,10 @@ using `pip`, just search `source-over-ssh` and install it. ::
     sh $ pip install source-over-ssh
 
 
-from source
+From Source
 ==================================================
 
-requirement
+Requirement
 --------------------------------------------------
 
  - `Python` 2.6 or higher <http://python.org>
@@ -65,24 +65,24 @@ or, just use ``pip`` ::
 `setup.py`
 --------------------------------------------------
 
-#. download the latest version of `sos` from https://github.com/spikeekips/source-over-ssh/downloads
-#. run the `setup.py`::
+#. Download the latest version of `sos` from https://github.com/spikeekips/source-over-ssh/downloads
+#. Run the `setup.py`::
 
     sh $ tar xf source-over-ssh-vX.X.X.tar.gz
     sh $ cd source-over-ssh-vX.X.X
     sh $ python -V
     sh $ python setup.py install
 
-everything done.
+Everything done.
 
 
-generate ssh host key
+Generate SSH Host Key
 ==================================================
 
-to run, you need ssh host key for `sos`. you can set the directory of host
+To run, you need ssh host key for `sos`. You can set the directory of host
 key(private and public) manually by ``--host-key`` option, but if you run this
 server within normal user, not `root`, i recommend you use your own ssh host
-key. the default path is ``$HOME/.sos``. you can generate ssh host key like this,
+key. The default path is ``$HOME/.sos``. You can generate ssh host key like this,
 
 ::
 
@@ -90,28 +90,28 @@ key. the default path is ``$HOME/.sos``. you can generate ssh host key like this
     sh $ mkdir .sos
     sh $ ssh-keygen -q -f .sos/ssh_host_key -N "" -t rsa
 
-this command will generate two ssh host key files, ``ssh_host_key`` and
+This command will generate two ssh host key files, ``ssh_host_key`` and
 ``ssh_host_key.pub`` without passphrase, these keys will be used only for `sos`.
 `sos` will use this keys by default.
 
 
-deploy
+Deploy
 ##################################################
 
-after installation finished and the host keys are prepared, it's ready to deply
-the `sos`. the deploy script are located at ``/bin`` from the installation root
+After installation finished and the host keys are prepared, it's ready to deply
+the `sos`. The deploy script are located at ``/bin`` from the installation root
 path ::
 
     sh $ python setup.py install --prefix=/opt/sos
 
-this command will install `sos` to the ``/opt/sos``. if you install without
+This command will install `sos` to the ``/opt/sos``. if you install without
 ``prefix``, the deploy script will be at the system default location, ``/usr/bin``.
 
-you can run the deploy script like this, ::
+You can run the deploy script like this, ::
 
     sh $ /opt/sos/bin/run_sos.py
 
-this will launch the `sos` in background, as daemon. you can set these kind of
+This will launch the `sos` in background, as daemon. You can set these kind of
 options manually, ::
 
     sh $ /opt/sos/run_sos.py --help
@@ -138,29 +138,29 @@ options manually, ::
           --reactor=
           --help           Display this help and exit.
 
-usually you will need these kind of options, ::
+Usually you will need these kind of options, ::
 
     sh $ /opt/sos/bin/run_sos.py --config=/etc/sos.cfg --port=2020 -n
 
-this will use the custom config file, ``/etc/sos.cfg``, set the custom port, 2020
+This will use the custom config file, ``/etc/sos.cfg``, set the custom port, 2020
 and run it without daemonizing.
 
 .. note ::
-    the `sos` will store the all the user account and source repository data
+    The `sos` will store the all the user account and source repository data
     into the config file. the default config file will be created automatically
     at the `.sos/sos.cfg` in your home directory.
 
 
-get started
+Get Started
 ##################################################
 
-access to the management shell
+Access To The Management Shell
 ==================================================
 
-without option, `sos` will use the ``2022`` port, you can access to the management
+Without option, `sos` will use the ``2022`` port, you can access to the management
 shell.
 
-after clean installation, `sos` is prepared the one user, `admin`, this user can
+After clean installation, `sos` is prepared the one user, `admin`, this user can
 manage the server, like adding or removing user, repository, etc. ::
 
     sh $ ssh -p 2022 admin@localhost
@@ -176,10 +176,10 @@ manage the server, like adding or removing user, repository, etc. ::
 
     sos: admin $
 
-the default `admin` password is `admin`. you must change the password after
+The default `admin` password is `admin`. you must change the password after
 first login.
 
-change password
+Change Password
 ==================================================
 
 ::
@@ -187,7 +187,7 @@ change password
     sos: admin $ password <new password>
 
 
-add virtual user
+Add Virtual User
 ==================================================
 
 ::
@@ -206,14 +206,14 @@ and access as new user, ``spikeekips``. ::
 
     sos: spikeekips $
 
-you can set your email and realname, and also change your password too.
+You can set your email and realname, and also change your password too.
 
 .. note ::
-   the email and realname will be used for svn, when you commit to the svn
+   The email and realname will be used for svn, when you commit to the svn
    repository, this email and realname will be used as your identity.
 
 
-add source repository
+Add Source Repository
 ==================================================
 
 ::
@@ -227,7 +227,7 @@ add source repository
     ======================================================================
 
 
-the basic usage of adding repository is, ::
+The basic usage of adding repository is, ::
 
     sos: admin $ help admin repo add
 
@@ -237,26 +237,26 @@ the basic usage of adding repository is, ::
 ``<repo path>`` is the real reposiotry path in your system, and
 ``<alias>`` is the shortcut or alias and you can access to the repository with
 this alias, using alias you can access to your long repository name with alias.
-without ``<alias>`` the alias name will be the same name of ``<repo path>``
+Without ``<alias>`` the alias name will be the same name of ``<repo path>``
 
 ::
 
     sh $ svn co svn+ssh://localhost/sos-trunk
 
-this will access to the real repository, ``/workspace/sos/test/trunk``, so ``alias``
+This will access to the real repository, ``/workspace/sos/test/trunk``, so ``alias``
 is the virtual path.
 
 
-allow source repository to the user
+Allow Source Repository To The User
 ==================================================
 
-to access to the repository by the normal user, you can allow the registered
+To access to the repository by the normal user, you can allow the registered
 repository to the user. ::
 
     sos: admin $ admin repo allow user spikeekips /sos-test
     repository, '/sos-trunk' allowed to user, 'spikeekips'
 
-you can also disallow the user, ::
+You can also disallow the user, ::
 
     sos: admin $ admin repo disallow user spikeekips /sos-test
     sos: admin $ admin repo user list /sos-test
@@ -265,17 +265,17 @@ you can also disallow the user, ::
     ============================================================
 
 
-store public key for authentication without passphrase
+Store Public Key For Authentication Without Passphrase
 ==========================================================
 
-you can login with your ssh public key without passphrase same as decent ssh
+You can login with your ssh public key without passphrase same as decent ssh
 client. you store your ssh public key(not private key) to the `sos`.
 
 .. note ::
-    if you are not familiar with ssh or creating ssh public key, see this page,
+    If you are not familiar with ssh or creating ssh public key, see this page,
     http://www.cs.wustl.edu/~mdeters/how-to/ssh/ .
 
-open your ssh public key, which is usually ``.ssh/id_rsa.pub`` in your home
+Open your ssh public key, which is usually ``.ssh/id_rsa.pub`` in your home
 directory, and paste it. this is my personal public key ::
 
     sos: admin $ public_key view
@@ -287,11 +287,11 @@ directory, and paste it. this is my personal public key ::
 
 
 .. warning ::
-    the upper public key was edited with new line for the example. the string
+    The upper public key was edited with new line for the example. The string
     of public key are very long, but you must enter your key **without any new
     line**.
 
-and then, just try to connect, ::
+And then, just try to connect, ::
 
     sh $ ssh -p2022 admin@localhost
     Enter passphrase for key '/home/spikeekips/.ssh/id_rsa':
@@ -299,19 +299,19 @@ and then, just try to connect, ::
     sos: admin $
 
 .. note ::
-    to skip asking passphrase for key, see this page,
+    To skip asking passphrase for key, see this page,
     http://pkeck.myweb.uga.edu/ssh/
 
 
-access your repository
+Access Your Repository
 ##################################################
 
-after adding repository and allowing user, you are ready to use your source
+After adding repository and allowing user, you are ready to use your source
 repository.
 
 .. note ::
-    when you run `sos` as non-root user, you wil not use the default ssh port,
-    22. in this case, there are some problems with `svn`, using command line svn
+    When you run `sos` as non-root user, you wil not use the default ssh port,
+    22. In this case, there are some problems with `svn`, using command line svn
     client you can not set the different port other than 22 directly, so you
     need some tip, adding the followings to the ``.ssh/config`` file from your
     home directory ::
@@ -331,14 +331,14 @@ repository.
     sh $
 
 
-add remote repository
+Add Remote Repository
 ##################################################
 
-you can do mirroring the repositories in the another server, so you can provide
+You can do mirroring the repositories in the another server, so you can provide
 the one access point to access the repositories of various remote servers.
 
 .. note ::
-    at this time, `sos` just only support ssh connection to the remote server.
+    At this time, `sos` just only support ssh connection to the remote server.
 
 ::
 
@@ -356,8 +356,8 @@ the one access point to access the repositories of various remote servers.
      ....
     =====================================================================================
 
-you added successfully the repository of the remote server, `remote-server` and
-the remote user `remoteuser` with `password`. after adding, you can check the
+You added successfully the repository of the remote server, `remote-server` and
+the remote user `remoteuser` with `password`. After adding, you can check the
 connectivity using `admin repo check` command,
 
 ::
@@ -369,21 +369,21 @@ connectivity using `admin repo check` command,
     sos: admin $ admin repo check /remote-svn
     remote repository, '/remote-svn'('svn+ssh://remoteuser@remote-server/svn-repository') is accessible.
 
-if the remote server is not valid, it will show the error messages.
+If the remote server is not valid, it will show the error messages.
 
-to access this remote repository, follow the same way of local repository. ::
+To access this remote repository, follow the same way of local repository. ::
 
     sh $ svn co svn+ssh://localhost/remote-svn
 
 
-todo
+TODO
 ##################################################
 
  * mirroring remote repository
 
-get help
+Get Help
 ##################################################
 
- * GitHub https://github.com/spikeekips/source-over-ssh/issues.
+ * GitHub https://github.com/spikeekips/source-over-ssh/issues .
 
 

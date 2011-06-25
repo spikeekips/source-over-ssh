@@ -125,6 +125,10 @@ class SOSSession (session.SSHSession, ) :
         if data is None :
             return
 
+        if self._request_type not in ("shell", ) :
+            utils.debug("<< write: %s: %s" % (
+                self._request_type, [data, ], ), )
+
         return session.SSHSession.dataReceived(self, data, )
 
     def _eb_to_server (self, f, ) :
@@ -134,12 +138,26 @@ class SOSSession (session.SSHSession, ) :
         return f.raiseException()
 
     def write (self, data, ) :
-        if self._request_type not in ("shell", ) :
-            utils.debug("<< write: %s: %s" % (
-                self._request_type, [data, ], ), )
-
         return defer.maybeDeferred(self._session_tunnel.to_client, data,
                 ).addCallbacks(self._cb_to_client, self._eb_to_client, )
+
+    def writeExtended (self, data_type, data, ) :
+        return defer.maybeDeferred(
+                self._session_tunnel.to_client_extended, data,
+            ).addCallback(
+                self._cb_to_client_extended, data_type,
+            ).addErrback(
+                self._eb_to_client_extended,
+            )
+
+    def _cb_to_client_extended (self, data, data_type, ) :
+        if data is None :
+            return
+
+        return session.SSHSession.writeExtended(self, data_type, data, )
+
+    def _eb_to_client_extended (self, f, ) :
+        f.raiseException()
 
     def _cb_to_client (self, data, ) :
         if data is None :
@@ -301,6 +319,7 @@ class ConfigDBPassword (object, ) :
                 error.UnauthorizedLogin())
 
 
+##################################################
 # ssh client
 class SCSSHSession (channel.SSHChannel, ) :
     name = "session"
@@ -317,12 +336,6 @@ class SCSSHSession (channel.SSHChannel, ) :
 
         self.conn.sendRequest(self, "exec", common.NS(self._command, ), )
 
-    def write (self, data, ) :
-        return channel.SSHChannel.write(self, data, )
-
-    def closeReceived (self, ) :
-        return self.conn.sendClose(self, )
-
     def request_exit_status (self, data, ) :
         # TODO: send exit-status to the client.
         pass
@@ -330,25 +343,24 @@ class SCSSHSession (channel.SSHChannel, ) :
 
 class SCSSHConnection (connection.SSHConnection, ) :
     def __init__ (self, *a, **kw) :
-        kw.setdefault("client", dict(), )
-        self._client = kw.get("client", dict(), )
-        del kw["client"]
-
         connection.SSHConnection.__init__(self, *a, **kw)
 
-        self._session = None
+        self._client = None
 
-    def openChannel (self, command, extra="", ) :
-        self._session = SCSSHSession(command=command, )
+    def get_session (self, ) :
+        return self.channels.get(0, None, )
 
-        return connection.SSHConnection.openChannel(self, self._session, extra, )
+    def openChannel (self, client, command, extra="", ) :
+        self._client = client
+        return connection.SSHConnection.openChannel(
+                self, SCSSHSession(command=command, ), extra, )
 
     def ssh_CHANNEL_OPEN_CONFIRMATION (self, *a, **kw) :
         connection.SSHConnection.ssh_CHANNEL_OPEN_CONFIRMATION(self, *a, **kw)
 
-        self._session.dataReceived = self._client.dataReceived
-        self._session.extReceived = lambda x, y: self._client.dataReceived(y, )
-        self.write = self._session.write
+        self.get_session().dataReceived = self._client.dataReceived
+        self.get_session().extReceived = self._client.extReceived
+        self.write = self.get_session().write
 
     def serviceStarted (self, ) :
         utils.debug("ssh connection opened", )
@@ -357,34 +369,34 @@ class SCSSHConnection (connection.SSHConnection, ) :
         utils.debug("connection closing %s" % channel, )
         utils.debug("stopping connection")
 
-        if self._client._protocol :
-            self._client._protocol.loseConnection()
+        if self._client :
+            self._client.loseConnection()
 
 
 class SSHUserAuthClient (userauth.SSHUserAuthClient, ) :
     def __init__ (self, user, password, *a, **kw) :
         userauth.SSHUserAuthClient.__init__(self, user, *a, **kw)
+        self.getPassword = lambda *a, **kw : defer.succeed(password, )
 
-        self._password = password
-        self._n_auth_password = 0
+        self._authed_password = False
 
-    def getPassword (self, prompt=None, ) :
-        return defer.succeed(self._password, )
+        self.auth_public_key = lambda : False
+        self.auth_keyboard_interactive = lambda : False
 
     def auth_password (self, ) :
-        if self._n_auth_password > 0 :
-            self.transport.sendDisconnect(
+        if self._authed_password :
+            self.transport.factory.client.session.conn.transport.sendDisconnect(
                 transport.DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE,
-                "no more authentication methods available", )
-            return
+                "Invalid password", )
+            return False
 
-        self._n_auth_password += 1
+        self._authed_password = True
         return userauth.SSHUserAuthClient.auth_password(self, )
 
 
 class SSHClient (object, ) :
-    def __init__ (self, protocol, host, port, user, password, ) :
-        self._protocol = protocol
+    def __init__ (self, session, host, port, user, password, ) :
+        self.session = session
 
         self._options = options.ConchOptions()
         self._options.update(
@@ -398,17 +410,20 @@ class SSHClient (object, ) :
             }
         )
         self._password = password
-        self._dataReceived = lambda x : x
+        self.dataReceived = lambda x : x
+        self.extReceived = lambda x : x
 
-        self._connection = None
-        self._factory = None
+        self._tcp = None
+
+    def _get_connection (self, ) :
+        return self._tcp.factory.userAuthObject.instance
+
+    def loseConnection (self, ) :
+        self.session.loseConnection()
 
     def close (self, ) :
-        if self._factory :
-            self._connection.serviceStopped()
-            self._factory.doStop()
-
-        del self
+        if self._tcp :
+            self._tcp.disconnect()
 
     @classmethod
     def verifyHostKey (cls, transport, ip, key_encoded, fingerprint, ) :
@@ -430,39 +445,45 @@ class SSHClient (object, ) :
         return defer.maybeDeferred(lambda : True, )
 
     def connect (self, ) :
-        self._connection = SCSSHConnection(client=self, )
-        _uao = SSHUserAuthClient(
-                self._options.get("user"),
-                self._password,
-                self._connection,
-        )
-
-        _d = defer.Deferred()
-        self._factory = direct.SSHClientFactory(
-                _d,
-                self._options,
-                self.__class__.verifyHostKey,
-                _uao,
-            )
-
         from twisted.internet import reactor
-        reactor.connectTCP(
+        self._tcp = reactor.connectTCP(
                 self._options.get("host"),
                 self._options.get("port"),
-                self._factory,
+                direct.SSHClientFactory(
+                    defer.Deferred(),
+                    self._options,
+                    self.__class__.verifyHostKey,
+                    SSHUserAuthClient(
+                        self._options.get("user"),
+                        self._password,
+                        SCSSHConnection(),
+                    ),
+                ),
             )
 
-        return _d
+        self._tcp.factory.client = self
+
+        return self._tcp.factory.d.addErrback(self._eb_connect, )
+
+    def _eb_connect (self, f, ) :
+        if f.check(error_internet.ConnectionRefusedError, ) :
+            _ecode = transport.DISCONNECT_SERVICE_NOT_AVAILABLE
+            _emsg = str(f.value, )
+        else :
+            _ecode = transport.DISCONNECT_CONNECTION_LOST
+            _emsg = "problems occured."
+
+        self.session.conn.transport.sendDisconnect(_ecode, _emsg, )
+        self.session.loseConnection()
+
+        return None
 
     def open_session (self, command, ) :
-        return self._connection.openChannel(command, )
+        return self._get_connection().openChannel(self, command, )
 
     def write (self, data, ) :
         # write to target
         utils.debug(">> to remote: " + str([data, ],))
 
-        self._connection.write(data, )
-
-    def dataReceived (self, data, ) :
-        pass
+        self._get_connection().write(data, )
 

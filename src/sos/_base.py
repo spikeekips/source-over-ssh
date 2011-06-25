@@ -31,6 +31,9 @@ class BaseSessionTunnel (object, ) :
     def to_client (self, data, ) :
         return self.parse_to_client(data, )
 
+    def to_client_extended (self, data, ) :
+        return self.parse_to_client_extended(data, )
+
     def parse_exec (self, ) :
         return self._commandline
 
@@ -38,6 +41,9 @@ class BaseSessionTunnel (object, ) :
         return data
 
     def parse_to_client (self, data, ) :
+        return data
+
+    def parse_to_client_extended (self, data, ) :
         return data
 
 

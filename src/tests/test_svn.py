@@ -48,6 +48,7 @@ Traceback (most recent call last):
 ...
 BAD_SVN_REPOSITORY_COMMAND: bad svn repository command
 
+
 with normal `edit-pipeline`
 >>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev/a/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
 >>> SVNCommandParser(a, ).replace_path("a", "bc")
@@ -56,7 +57,7 @@ with normal `edit-pipeline`
 '( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 48:svn+ssh://srothan@dev/bc/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) '
 
 with abnormal path
->>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev///a/////////dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
+>>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 57:svn+ssh://srothan@dev///a/////////dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
 >>> SVNCommandParser(a, ).replace_path("//a///", "/bc///")
 '( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 48:svn+ssh://srothan@dev/bc/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) '
 
@@ -66,7 +67,7 @@ with abnormal path
 
 >>> a = "( failure ( ( 210005 68:No repository found in 'svn+ssh://srothan@dev/a/dlfjalsd' 63:/build/buildd/subversion-1.6.12dfsg/subversion/svnserve/serve.c 2847 ) ) ) "
 >>> SVNCommandParser(a, ).replace_path("a", "cd", )
-"( failure ( ( 210005 68:No repository found in 'svn+ssh://srothan@dev/cd/dlfjalsd' 63:/build/buildd/subversion-1.6.12dfsg/subversion/svnserve/serve.c 2847 ) ) ) "
+"( failure ( ( 210005 69:No repository found in 'svn+ssh://srothan@dev/cd/dlfjalsd' 63:/build/buildd/subversion-1.6.12dfsg/subversion/svnserve/serve.c 2847 ) ) ) "
 
 >>> a = '( reparent ( 23:svn+ssh://srothan@dev/a ) ) '
 >>> SVNCommandParser(a, ).replace_path("a", "cd", )
@@ -80,7 +81,17 @@ with abnormal path
 >>> SVNCommandParser(a, ).replace_path("a", "cd", )
 '(reparent ( 24:svn+ssh://srothan@dev/cd))'
 
->>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev/a/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
+>>> a = '(reparent ( 35:svn+ssh://srothan@dev/abcdedg.hij-k))'
+>>> SVNCommandParser(a, ).replace_path("abcdedg.hij-k", "cd", )
+'(reparent ( 24:svn+ssh://srothan@dev/cd))'
+
+
+>>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 49:svn+ssh://srothan@dev/a/b/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
+>>> SVNCommandParser(a, ).replace_repository("svn+ssh://srothan@dev/a", "svn+ssh://srothan@dev/a/killme/", )
+'( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 57:svn+ssh://srothan@dev/a/killme//b/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) '
+
+
+>>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev/a//dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
 >>> SVNCommandParser(a, ).get_repository_path()
 '/a/dir%20with%20whitespace'
 
@@ -99,6 +110,12 @@ True
 >>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev/a 21:SVN/1.6.16 (r1073529) ( ) ) "
 >>> SVNCommandParser(a, ).get_alias(["a", "b", ])
 'a'
+
+>>> a = "( 2 ( edit-pipeline svndiff1 absent-entries depth mergeinfo log-revprops ) 47:svn+ssh://srothan@dev/a/b/dir%20with%20whitespace 21:SVN/1.6.16 (r1073529) ( ) ) "
+>>> SVNCommandParser(a, ).get_alias(["/a", "/a/b", ])
+'/a/b'
+
+
 """
 
 

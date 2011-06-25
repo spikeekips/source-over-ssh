@@ -6,7 +6,7 @@ import shlex
 import string
 import urlparse
 
-from twisted.internet import defer, error as error_internet
+from twisted.internet import defer
 
 import _base
 import _exceptions
@@ -22,6 +22,7 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
     def __init__ (self, *a, **kw) :
         super(SessionTunnel, self).__init__(*a, **kw)
 
+        self._commandline_fixed = self._commandline
         self._buf = list()
 
     def parse_exec (self, ) :
@@ -37,7 +38,8 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
             self._config_db.get_full_username(self._session.avatar.username, ), ),
         )
 
-        return " ".join(_argv, )
+        self._commandline_fixed = " ".join(_argv, )
+        return self._commandline_fixed
 
     def parse_to_server (self, data, ) :
         try :
@@ -56,13 +58,11 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
                         self._alias, )
 
                 def _cb_open_session (r, ) :
-                    self._client.open_session(self._commandline, )
                     self._client.dataReceived = self._session.write
-                    return
 
-                def _eb_open_session (f, ) :
-                    if f.check(error_internet.ConnectionRefusedError, ) :
-                        self._session.loseConnection()
+                    self._client.extReceived = self._session.writeExtended
+                    self._client.open_session(self._commandline_fixed, )
+                    return None
 
                 self._client = ssh_factory.SSHClient(
                     self._session,
@@ -71,9 +71,8 @@ class SessionTunnel (_base.BaseSessionTunnel, ) :
                     _parsed.get("user"),
                     self._config_db.get_repository_property(self._alias, "password", None, ),
                 )
-                self._client.connect().addCallbacks(_cb_open_session, _eb_open_session, )
                 self._buf.append(self.replace_path_to_server(_cp, ), )
-                return None
+                return self._client.connect().addCallback(_cb_open_session, )
 
         return self.replace_path_to_server(_cp, )
 
@@ -141,194 +140,121 @@ class SVNCommandParser (object, ) :
     _strings = re.escape("".join([i for i in string.punctuation if i not in (")", "(", )], ), )
 
     IS_SVN_COMMAND = re.compile("^[\s]*\([\s]*.*[\s]*\)[\s]*$", )
-    RE_REPOSITORY_WITH_LEN = re.compile("[\s]*(\d+):(svn\+ssh\:\/\/[\w%s]+)[\s]*" % _strings, re.I, )
-    RE_REPOSITORY_QUOTED = re.compile("[\s]*(')(svn\+ssh\:\/\/[\w%s]+)'[\s]*" % _strings, re.I, )
+    RE_REPOSITORY = re.compile("([ \:\'\"\)\(])(svn\+ssh\:\/\/[\w%s]+)([ \'\"\)\(])" % _strings, re.I, )
+    RE_LEN = re.compile("[\s]*([\d][\d]*)\:[^ ]", )
 
     _COMMANDS_HAS_REPOSITORY = {
-        "edit-pipeline": ("^[\s]*\([\s]*\d+[\s]*\([\s]*(?P<type>edit-pipeline).*\)", RE_REPOSITORY_WITH_LEN, ),
-        "success": ("^[\s]*\([\s]*(?P<type>success)[\s]*\(", RE_REPOSITORY_WITH_LEN, ),
-        "failure": ("^[\s]*\([\s]*(?P<type>failure)[\s*]\(", RE_REPOSITORY_QUOTED, ),
-        "reparent": ("^\([\s]*(?P<type>reparent)[\s]*\(", RE_REPOSITORY_WITH_LEN, ),
-        "open-root": ("^[\s]*\([\s]*(?P<type>open-root)[\s]*\(", RE_REPOSITORY_WITH_LEN, ),
-        "add-dir": ("^[\s]*\([\s]*(?P<type>add-dir)[\s]*\(", RE_REPOSITORY_WITH_LEN, ),
-    }
-
-    COMMANDS_HAS_REPOSITORY = dict(
-        map(
-            lambda x : (x[0], (re.compile(x[1][0], re.I, ), x[1][1], ), ),
-            _COMMANDS_HAS_REPOSITORY.items(),
-        ),
-    )
+        "edit-pipeline": "^[\s]*\([\s]*\d+[\s]*\([\s]*(?P<type>edit-pipeline).*\)",
+        "success": "^[\s]*\([\s]*(?P<type>success)[\s]*\(",
+        "failure": "^[\s]*\([\s]*(?P<type>failure)[\s*]\(",
+        "reparent": "^\([\s]*(?P<type>reparent)[\s]*\(",
+        "open-root": "^[\s]*\([\s]*(?P<type>open-root)[\s]*\(",
+        "add-dir": "^[\s]*\([\s]*(?P<type>add-dir)[\s]*\(",
+    }  # just history.
 
     def __init__ (self, command, ) :
         self._command = command
 
-        self._parse()
-
-    def _parse (self, ) :
-        self._r = None
         if not self.IS_SVN_COMMAND.match(self._command, ) :
             raise _exceptions.BAD_SVN_REPOSITORY_COMMAND
 
-        _re_repository = None
-        for i, j in self.COMMANDS_HAS_REPOSITORY.items() :
-            if j[0].search(self._command, ) is None :
-                continue
-            elif j[1].search(self._command, ) is None :
-                continue
-
-            _re_repository = i
-
-        if _re_repository is None :
+        if not self.RE_REPOSITORY.search(self._command, ) or not self.RE_LEN.search(self._command, ) :
             raise _exceptions.BAD_SVN_REPOSITORY_COMMAND
 
-        self._r = _re_repository
-
     def get_client_base (self, alias, ) :
-        if self._r is None :
-            return None
-
+        _command = "".join(self._command, )
         _alias = utils.normpath(alias, )
         _base = None
 
-        (_none, _r, ) = self.COMMANDS_HAS_REPOSITORY.get(self._r, )
-        if _r == self.RE_REPOSITORY_WITH_LEN :
-            _re_repo = list(_r.finditer(self._command, ), )
-            for j in range(len(_re_repo) - 1, -1, -1, ) :
-                i = _re_repo[j]
-                _parsed = list(urlparse.urlsplit(i.group(2), ), )
-                _parsed[2] = _alias
-                _base = urlparse.urlunsplit(_parsed, )
-                break
+        _r_repo = list(self.RE_REPOSITORY.finditer(_command, ))
+        for i in xrange(len(_r_repo, ) - 1, -1, -1, ) :
+            j = _r_repo[i]
 
-        elif _r == self.RE_REPOSITORY_QUOTED :
-            _re_repo = list(_r.finditer(self._command, ), )
-            for j in range(len(_re_repo) - 1, -1, -1, ) :
-                i = _re_repo[j]
-                _parsed = list(urlparse.urlsplit(i.group(2), ), )
-                _parsed[2] = _alias
-                _base = urlparse.urlunsplit(_parsed, )
-                break
+            _parsed = list(urlparse.urlsplit(j.group(2), ), )
+            _parsed[2] = _alias
+            _base = urlparse.urlunsplit(_parsed, )
 
-        else :
+            break
+
+        if _base is None :
             raise _exceptions.BAD_SVN_REPOSITORY_COMMAND
 
         return _base
 
-    def replace_repository (self, a, b, ) :
-        if self._r is None :
-            return self._command
-
-        (_none, _r, ) = self.COMMANDS_HAS_REPOSITORY.get(self._r, )
-        if _r == self.RE_REPOSITORY_WITH_LEN :
-            _method = self._replace_repository_with_len
-        elif _r == self.RE_REPOSITORY_QUOTED :
-            _method = self._replace_repository_quoted
-        else :
-            raise _exceptions.BAD_SVN_REPOSITORY_COMMAND
-
-        return _method(_r, a, b, )
-
-    def _replace_repository_with_len (self, r, a, b, ) :
-        _re_repo = list(r.finditer(self._command, ), )
-
-        _command = self._command
-        for j in range(len(_re_repo) - 1, -1, -1, ) :
-            i = _re_repo[j]
-
-            _new_path = re.compile(
-                "^(%s)" % (re.escape(a, ), ),
-            ).sub(b, i.group(2), )
-
-            _command = "%s%s%s" % (_command[:i.start(1)], len(_new_path), _command[i.end(1):], )
-            _command = "%s%s%s" % (_command[:i.start(2)], _new_path, _command[i.end(2):], )
-
-        return _command
-
-    def _replace_repository_quoted (self, r, a, b, ) :
-        _re_repo = list(r.finditer(self._command, ), )
-
-        _command = self._command
-        for j in range(len(_re_repo) - 1, -1, -1, ) :
-            i = _re_repo[j]
-            _new_path = re.compile(
-                "^(%s)" % (re.escape(a, ), ),
-            ).sub(b, i.group(2), )
-
-            _command = "%s%s%s" % (_command[:i.start(2)], _new_path, _command[i.end(2):], )
-
-        return _command
-
-    def replace_path (self, a, b, ) :
-        if self._r is None :
-            return self._command
-
-        (_none, _r, ) = self.COMMANDS_HAS_REPOSITORY.get(self._r, )
-        if _r == self.RE_REPOSITORY_WITH_LEN :
-            _method = self._replace_path_with_len
-        elif _r == self.RE_REPOSITORY_QUOTED :
-            _method = self._replace_path_quoted
-        else :
-            raise _exceptions.BAD_SVN_REPOSITORY_COMMAND
-
-        return _method(_r, a, b, )
-
-    def _replace_path_with_len (self, r, a, b, ) :
-        _re_repo = list(r.finditer(self._command, ), )
-
-        _command = self._command
-        for j in range(len(_re_repo) - 1, -1, -1, ) :
-            i = _re_repo[j]
-            _parsed = list(urlparse.urlsplit(i.group(2), ), )
-            (a, b, _path, ) = map(utils.normpath, (a, b, _parsed[2], ), )
-
-            _parsed[2] = utils.normpath(
-                re.compile(
-                    "^(%s)" % (re.escape(a), ),
-                ).sub(b, _path, ),
-            )
-
-            _new_path = urlparse.urlunsplit(_parsed, )
-            _command = "%s%s%s" % (_command[:i.start(1)], len(_new_path), _command[i.end(1):], )
-            _command = "%s%s%s" % (_command[:i.start(2)], _new_path, _command[i.end(2):], )
-
-        return _command
-
-    def _replace_path_quoted (self, r, a, b, ) :
-        _re_repo = list(r.finditer(self._command, ), )
-
-        _command = self._command
-        for j in range(len(_re_repo) - 1, -1, -1, ) :
-            i = _re_repo[j]
-            _parsed = list(urlparse.urlsplit(i.group(2), ), )
-            (a, b, _path, ) = map(utils.normpath, (a, b, _parsed[2], ), )
-
-            _parsed[2] = utils.normpath(
-                re.compile(
-                    "^(%s)" % (re.escape(a), ),
-                ).sub(b, _path, ),
-            )
-
-            _new_path = urlparse.urlunsplit(_parsed, )
-            _command = "%s%s%s" % (_command[:i.start(2)], _new_path, _command[i.end(2):], )
-
-        return _command
-
     def get_repository_path (self, ) :
-        (_none, _r, ) = self.COMMANDS_HAS_REPOSITORY.get(self._r, )
-        _parsed = list(urlparse.urlsplit(_r.search(self._command, ).group(2), ), )
-        return utils.normpath(_parsed[2], )
+        _command = "".join(self._command, )
+
+        _r_repo = list(self.RE_REPOSITORY.finditer(_command, ))
+        for i in xrange(len(_r_repo, ) - 1, -1, -1, ) :
+            j = _r_repo[i]
+
+            _parsed = list(urlparse.urlsplit(j.group(2), ), )
+            return utils.normpath(_parsed[2], )
 
     def is_in (self, repos, ) :
         return bool(self.get_alias(repos, ))
 
-    def get_alias (self, repos, ) :
-        _path = self.get_repository_path() + "/"
-        for i in repos :
-            if re.compile("^%s\/" % re.escape(utils.normpath(i), ), ).search(_path, ) :
+    def get_alias (self, avalable_aliases, ) :
+        _aliases = list(avalable_aliases)[:]
+        _aliases.sort()
+        _aliases.reverse()
+
+        _path = self.get_repository_path()
+        for i in _aliases :
+            if re.compile("^%s" % re.escape(utils.normpath(i), ), ).search(_path, ) :
                 return i
 
         return None
+
+    def replace_path (self, a, b, ) :
+        # clone from `http://rosettacode.org/wiki/Copy_a_string#Python`
+        _command = "".join(self._command, )
+        (a, b, ) = map(utils.normpath, (a, b, ), )
+
+        _matches_len = list(self.RE_LEN.finditer(_command, ))
+        _r_repo = list(self.RE_REPOSITORY.finditer(_command, ))
+
+        for i in xrange(len(_r_repo, ) - 1, -1, -1, ) :
+            j = _r_repo[i]
+            _ml = filter(lambda x : x.start(1) < j.start(2), _matches_len, )[-1]
+
+            _parsed = list(urlparse.urlsplit(j.group(2), ), )
+            _parsed[2] = re.compile("^(%s)" % (re.escape(a), ), ).sub(
+                b,
+                utils.normpath(_parsed[2], ),
+            )
+
+            _new_path = urlparse.urlunsplit(_parsed, )
+
+            _command = "%s%s%s" % (_command[:j.start(2)], _new_path, _command[j.end(2):], )
+            _command = "%s%s%s" % (
+                _command[:_ml.start(1)],
+                int(_command[_ml.start(1):_ml.end(1)]) + (len(_new_path) - len(j.group(2))),
+                _command[_ml.end(1):],
+            )
+
+        return _command
+
+    def replace_repository (self, a, b, ) :
+        _command = "".join(self._command, )
+
+        _matches_len = list(self.RE_LEN.finditer(_command, ))
+        _r_repo = list(self.RE_REPOSITORY.finditer(_command, ))
+
+        for i in xrange(len(_r_repo, ) - 1, -1, -1, ) :
+            j = _r_repo[i]
+            _ml = filter(lambda x : x.start(1) < j.start(2), _matches_len, )[-1]
+
+            _new_path = re.compile("^(%s)" % (re.escape(a), ), ).sub(b, j.group(2), )
+
+            _command = "%s%s%s" % (_command[:j.start(2)], _new_path, _command[j.end(2):], )
+            _command = "%s%s%s" % (
+                _command[:_ml.start(1)],
+                int(_command[_ml.start(1):_ml.end(1)]) + (len(_new_path) - len(j.group(2))),
+                _command[_ml.end(1):],
+            )
+
+        return _command
 
 
 if __name__ == "__main__"  :
