@@ -61,10 +61,10 @@ setup(
         ("bin", ("src/scripts/run_sos.py", ), ),
     ),
 
-    install_requires=(
+    requires=(
         "Twisted (>=11.0.0)",
         "pycrypto (>=3.2)",
-        "pyasn1 (>=0.0.13b)",
+        "pyasn1 (>=0.0.13)",
     ),
 
 )
