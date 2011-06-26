@@ -6,8 +6,8 @@ from distutils.core import setup
 from distutils.command.build_py import build_py
 
 long_description = """
-`source+over+ssh` (source repository server over ssh) can manage the multiple
-source repositories over `ssh` with virtual user account. it supports `svn`,
+`source-over-ssh` (source repository server over ssh) can manage the multiple
+source repositories over `ssh` with virtual user account. It supports `svn`,
 `git` and also provide the management shell through `ssh`.
 """
 
@@ -24,8 +24,8 @@ class SOSbuild_py (build_py, ) :
 
 setup(
     cmdclass=dict(build_py=SOSbuild_py, ),
-    name="source+over+ssh",
-    version="0.2",
+    name="source-over-ssh",
+    version="0.3",
     description="source repository management server over ssh",
     long_description=long_description.replace("\n", " ").strip(),
     author="Spike^ekipS",
@@ -36,8 +36,9 @@ setup(
     license="GNU General Public License (GPL)",
 
     classifiers=(
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Environment :: Console",
+        "Environment :: No Input/Output (Daemon)",
         "Framework :: Twisted",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
