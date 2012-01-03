@@ -36,15 +36,16 @@ class ConfigDatabase (object, ) :
     }
 
     @classmethod
-    def from_filename (cls, filename, ) :
-        return cls(file(filename, ), )
+    def from_filename (cls, filename, *a, **kw) :
+        return cls(file(filename, ), *a, **kw)
 
     @classmethod
-    def from_string (cls, s, ) :
-        return cls(StringIO(s, ), )
+    def from_string (cls, s, *a, **kw) :
+        return cls(StringIO(s, ), *a, **kw)
 
-    def __init__ (self, fp, ) :
+    def __init__ (self, fp, _global=False, ) :
         self._fp = fp
+        self._global = _global
         self._config = ConfigParser.ConfigParser()
         self._config.readfp(fp, )
 
@@ -170,6 +171,9 @@ class ConfigDatabase (object, ) :
 
         if p not in self.default_user :
             raise KeyError("'%s' does not exist." % p, )
+
+        if self._global and p == "repository" :
+            return self.repositories
 
         try :
             _r = self._config.get(self._u(username), p, )

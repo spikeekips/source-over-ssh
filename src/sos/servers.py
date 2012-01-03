@@ -24,6 +24,7 @@ class ServerOptions (_twistd_unix.ServerOptions, ) :
     optFlags = [
         ["vv", None, "verbose", ],
         ["test", None, "run doctest", ],
+        ["global", None, "allow global permission to every member", ],
     ]
 
     optParameters = [
@@ -168,7 +169,7 @@ def run_application () :
     factory.privateKeys = {"ssh-rsa": _read_key("ssh_host_key"), }
     factory.publicKeys = {"ssh-rsa": _read_key("ssh_host_key.pub"), }
 
-    _config_db = ConfigDatabase.from_filename(_options.get("config"), )
+    _config_db = ConfigDatabase.from_filename(_options.get("config"), _global=_options.get("global"), )
     factory.portal = Portal(
         ssh_factory.SOSRealm(_config_db, verbose=_options.get("verbose"), ),
         (
