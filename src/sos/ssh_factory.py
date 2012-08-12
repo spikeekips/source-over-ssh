@@ -276,14 +276,22 @@ class SOSPublicKeyDatabase (checkers_conch.SSHPublicKeyDatabase, ) :
         if not _public_key :
             return False
 
+        #try :
+        #    return base64.decodestring(
+        #            _public_key.split()[1], ) == credentials.blob
+        #except (binascii.Error, IndexError, ) :
+        #    pass
+
+        #return False
+
         try :
-            return base64.decodestring(
-                    _public_key.split()[1], ) == credentials.blob
+            return filter(lambda x : base64.decodestring(x.strip().split()[1], ) == credentials.blob, _public_key.split(','), )
         except (binascii.Error, IndexError, ) :
-            pass
-
+            import traceback
+            traceback.print_exc()
+        
         return False
-
+        
 
 class ConfigDBPassword (object, ) :
     implements(checkers_cred.ICredentialsChecker)
